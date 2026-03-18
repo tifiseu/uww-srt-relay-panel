@@ -198,7 +198,7 @@ function updateValues(){
   document.getElementById('groupTabs').innerHTML=groups.map(g=>`<div class="gt ${currentGroup===g?'active':''}" onclick="setGroup('${g}')">${g==='all'?'All':g} (${g==='all'?entries.length:entries.filter(([,r])=>r.group===g).length})</div>`).join('');
   for(const[id,r]of entries){const s=r.stats||{},el=x=>document.getElementById(x),on=r.running;
     const stEl=el(`st-${id}`);if(stEl)stEl.textContent=on?'Running'+(r.startedAt?' since '+new Date(r.startedAt).toLocaleTimeString():'')+(r.autostart?' · auto':''):'Stopped';
-    const srcDot=el(`src-dot-${id}`);if(srcDot){srcDot.className='ep-dot '+(on?'on':'off')}
+    const srcDot=el(`src-dot-${id}`);if(srcDot){srcDot.className='ep-dot '+((on&&s.sendRate>0)?'on':'off')}
     const dstDot=el(`dst-dot-${id}`);if(dstDot){dstDot.className='ep-dot '+((on&&s.sendRate>0)?'on':'off')}
     if(!on){['v-br-','v-rtt-','v-loss-','v-ret-','v-drop-','v-pts-'].forEach(p=>{const e=el(p+id);if(e)e.innerHTML='—'});continue}
     const brEl=el(`v-br-${id}`);if(brEl)brEl.innerHTML=s.sendRate?s.sendRate.toFixed(1)+' <small>Mbps</small>':'—';
