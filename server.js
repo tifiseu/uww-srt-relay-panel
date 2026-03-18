@@ -64,7 +64,11 @@ function getStatsHistory(id, lines, sinceReset) {
     if (sinceReset && resetPoints[id]) {
       senderLines = senderLines.filter(line => (line.split(',')[0] || '') >= resetPoints[id]);
     }
-    return senderLines.slice(-lines).map(line => {
+    // Take last 12000 sender lines (~20 min at ~10 lines/sec) and downsample to 'lines' points
+    const raw = senderLines.slice(-12000);
+    const step = Math.max(1, Math.floor(raw.length / lines));
+    const sampled = raw.filter((_, i) => i % step === 0).slice(-lines);
+    return sampled.map(line => {
       const f = line.split(',');
       return { time: f[0]||'', rtt: parseFloat(f[7])||0, sendRate: parseFloat(f[21])||0, sndLoss: parseInt(f[12])||0, retrans: parseInt(f[14])||0, sndDrop: parseInt(f[13])||0 };
     });
