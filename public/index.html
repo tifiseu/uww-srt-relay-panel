@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UWW SRT Relay Panel</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
   :root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--green:#22c55e;--green-bg:#052e16;--red:#ef4444;--red-bg:#2a0a0a;--blue:#3b82f6;--amber:#f59e0b;--purple:#a78bfa;--border:#1e293b;--accent:#6366f1}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-  header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+  header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
   header h1{font-size:18px;font-weight:700}header h1 span{color:var(--accent)}
-  .header-actions{display:flex;gap:8px;align-items:center}
+  .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .container{max-width:1400px;margin:0 auto;padding:24px}
   .stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
   .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px}
@@ -20,77 +21,102 @@
   .stat-card .value{font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace}
   .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
   .group-tabs{display:flex;gap:4px;flex-wrap:wrap}
-  .group-tab{padding:6px 14px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:13px;transition:all .15s}
-  .group-tab.active,.group-tab:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .refresh-bar{display:flex;gap:3px;align-items:center}
+  .gt{padding:6px 14px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:13px;transition:all .15s}
+  .gt.active,.gt:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
   .rb{padding:4px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:10px;font-family:'JetBrains Mono',monospace;transition:all .15s}
-  .rb.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .rb:hover{background:var(--bg4)}
+  .rb.active{background:var(--accent);color:#fff;border-color:var(--accent)}.rb:hover{background:var(--bg4)}
   .btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-  .btn:hover{background:var(--bg4)}
-  .btn-green{background:var(--green-bg);border-color:#166534;color:var(--green)}
-  .btn-red{background:var(--red-bg);border-color:#7f1d1d;color:var(--red)}
-  .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
-  .btn-sm{padding:4px 10px;font-size:12px}
-  .btn-xs{padding:2px 8px;font-size:10px;border-radius:4px}
+  .btn:hover{background:var(--bg4)}.btn-green{background:var(--green-bg);border-color:#166534;color:var(--green)}.btn-red{background:var(--red-bg);border-color:#7f1d1d;color:var(--red)}.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn-sm{padding:4px 10px;font-size:12px}.btn-xs{padding:2px 8px;font-size:10px;border-radius:4px}
   .relay-grid{display:grid;gap:12px}
   .relay-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .relay-card.running{border-color:#166534}.relay-card.stopped{border-color:#7f1d1d}
-  .relay-header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
-  .relay-name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
-  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-  .dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.off{background:var(--red);opacity:.6}
-  .ep-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-  .ep-dot.on{background:var(--green)}.ep-dot.off{background:var(--text3)}
-  .relay-body{padding:14px 18px}
-  .relay-endpoints{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px}
-  .endpoint{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);background:var(--bg);padding:8px 10px;border-radius:6px;word-break:break-all;display:flex;align-items:center;gap:6px}
-  .endpoint-arrow{color:var(--accent);font-size:18px;text-align:center}
-  .mode-badge{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:var(--bg3);color:var(--text3);margin-left:auto;flex-shrink:0}
-  .relay-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
-  .mini-stat{background:var(--bg);border-radius:6px;padding:8px 10px}
-  .mini-stat .ms-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}
-  .mini-stat .ms-value{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px}
-  .relay-actions{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;align-items:center}
-  .relay-actions .left{margin-right:auto;display:flex;gap:6px;align-items:center}
+  .rh{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+  .rn{font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}.dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.off{background:var(--red);opacity:.6}
+  .ep-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}.ep-dot.on{background:var(--green)}.ep-dot.off{background:var(--text3)}
+  .rb2{padding:14px 18px}
+  .re{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px}
+  .ep{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);background:var(--bg);padding:8px 10px;border-radius:6px;word-break:break-all;display:flex;align-items:center;gap:6px}
+  .ea{color:var(--accent);font-size:18px;text-align:center}
+  .mb{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:var(--bg3);color:var(--text3);margin-left:auto;flex-shrink:0}
+  .rs{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
+  .ms{background:var(--bg);border-radius:6px;padding:8px 10px}.ms .ml{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}.ms .mv{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .ra{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+  .ra .left{margin-right:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .reset-badge{font-size:10px;color:var(--amber);font-family:'JetBrains Mono',monospace}
-  .chart-container{padding:0 18px 14px 18px}
-  .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-  .chart-box{background:var(--bg);border-radius:8px;padding:10px 12px}
-  .chart-box .chart-title{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px}
-  .chart-wrap{position:relative;height:100px}
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
-  .modal-overlay.show{display:flex}
+  .cc{padding:0 18px 14px}.cr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.cb{background:var(--bg);border-radius:8px;padding:10px 12px}.cb .ct{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px}.cw{position:relative;height:100px}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}.modal-overlay.show{display:flex}
   .modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto}
   .modal h2{font-size:18px;margin-bottom:20px}
-  .form-group{margin-bottom:14px}
-  .form-group label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:4px}
-  .form-group input,.form-group select{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;font-family:'JetBrains Mono',monospace}
-  .form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
-  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-  .form-check{display:flex;align-items:center;gap:8px}.form-check input{width:auto}
-  .form-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+  .fg{margin-bottom:14px}.fg label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:4px}
+  .fg input,.fg select{width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;font-family:'JetBrains Mono',monospace}
+  .fg input:focus,.fg select:focus{outline:none;border-color:var(--accent)}
+  .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .fc{display:flex;align-items:center;gap:8px}.fc input{width:auto}
+  .fa{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
   .empty{text-align:center;padding:60px 20px;color:var(--text3)}.empty p{margin-bottom:16px}
-  @media(max-width:768px){.relay-endpoints{grid-template-columns:1fr}.endpoint-arrow{transform:rotate(90deg)}.form-row,.form-row-3,.chart-row{grid-template-columns:1fr}}
+  .help-toggle{padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);cursor:pointer;font-size:12px;transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+  .help-toggle:hover{color:var(--text);background:var(--bg4)}
+  .help-panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:24px;display:none;font-size:13px;line-height:1.7;color:var(--text2)}
+  .help-panel.show{display:block}
+  .help-panel h3{font-size:14px;color:var(--text);margin:16px 0 6px;font-weight:700}.help-panel h3:first-child{margin-top:0}
+  .help-panel code{font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--bg);padding:2px 6px;border-radius:4px;color:var(--accent)}
+  .help-panel a{color:var(--accent);text-decoration:none}.help-panel a:hover{text-decoration:underline}
+  .help-panel table{width:100%;border-collapse:collapse;margin:8px 0}.help-panel td,.help-panel th{padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:12px}
+  .help-panel th{color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.5px;font-size:10px}
+  .links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .links a{padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;text-decoration:none;transition:all .15s}.links a:hover{background:var(--bg4);color:var(--text)}
+  @media(max-width:768px){.re{grid-template-columns:1fr}.ea{transform:rotate(90deg)}.fr,.fr3,.cr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <header>
   <h1><span>UWW</span> SRT Relay Panel</h1>
   <div class="header-actions">
-    <div class="refresh-bar">
+    <div style="display:flex;gap:3px;align-items:center">
       <button class="rb" onclick="setRefresh(0)">Pause</button>
       <button class="rb active" onclick="setRefresh(3000)">3s</button>
       <button class="rb" onclick="setRefresh(15000)">15s</button>
       <button class="rb" onclick="setRefresh(60000)">1m</button>
     </div>
-    <button class="btn btn-green" onclick="startAll()">Start all</button>
-    <button class="btn btn-red" onclick="stopAll()">Stop all</button>
+    <button class="btn btn-green" onclick="confirmStartAll()">Start all</button>
+    <button class="btn btn-red" onclick="confirmStopAll()">Stop all</button>
     <button class="btn btn-accent" onclick="showAddModal()">+ Add relay</button>
+    <button class="help-toggle" onclick="toggleHelp()">? Help</button>
   </div>
 </header>
 <div class="container">
+  <div class="help-panel" id="helpPanel">
+    <h3>Quick reference</h3>
+    <p>Each relay takes an SRT stream from KiloLink (source) and pushes/serves it to a destination (TV taker, Brightcove, Flo, EVS).</p>
+    <h3>KiloLink SRT source ports (localhost)</h3>
+    <table><tr><th>Port</th><th>Feed</th></tr>
+    <tr><td><code>srt://127.0.0.1:30100</code></td><td>Mat B — TV feed</td></tr>
+    <tr><td><code>srt://127.0.0.1:30101</code></td><td>Mat C — TV feed</td></tr>
+    <tr><td><code>srt://127.0.0.1:30102</code></td><td>Mat A — UWW+ feed</td></tr>
+    <tr><td><code>srt://127.0.0.1:30103</code></td><td>Mat B — UWW+ feed</td></tr>
+    <tr><td><code>srt://127.0.0.1:30104</code></td><td>Mat C — UWW+ feed</td></tr></table>
+    <h3>Destination modes</h3>
+    <p><strong>Caller (push)</strong> — you connect to their server. Use when the TV taker gives you an SRT listener URL.<br>
+    Example: <code>srt://livevideo.mediahub.evs.com:9001</code></p>
+    <p><strong>Listener (pull)</strong> — they connect to your server. Use when the TV taker wants to pull from you.<br>
+    Example: <code>srt://:30200</code> (listens on port 30200, taker connects to <code>srt://85.90.245.26:30200</code>)</p>
+    <h3>Port ranges</h3>
+    <table><tr><th>Range</th><th>Purpose</th></tr>
+    <tr><td><code>30000-30099</code></td><td>Reserved — KiloLink SRT outputs</td></tr>
+    <tr><td><code>30100-30199</code></td><td>KiloLink → Nimble/Panel source ports</td></tr>
+    <tr><td><code>30200-30299</code></td><td>Available for listener-mode outputs (TV takers pull)</td></tr></table>
+    <h3>Quick links</h3>
+    <div class="links">
+      <a href="http://85.90.245.26" target="_blank">KiloLink Server Pro</a>
+      <a href="https://studio.brightcove.com" target="_blank">Brightcove Studio</a>
+      <a href="http://85.90.245.26:3000" target="_blank">Grafana monitoring</a>
+      <a href="https://cloud.linode.com/linodes" target="_blank">Linode Cloud Manager</a>
+    </div>
+    <h3>Auto-reconnect</h3>
+    <p>If the source (KiloLink) or destination drops, the relay automatically retries every 3 seconds. The green/red dots next to URLs show connection state. You only need to manually stop a relay — it will keep reconnecting on its own.</p>
+  </div>
   <div class="stats-bar">
     <div class="stat-card"><div class="label">Total relays</div><div class="value" id="totalRelays">0</div></div>
     <div class="stat-card"><div class="label">Running</div><div class="value" style="color:var(--green)" id="runningRelays">0</div></div>
@@ -103,17 +129,17 @@
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <h2 id="modalTitle">Add relay</h2><input type="hidden" id="editId">
-    <div class="form-group"><label>Name</label><input id="fName" placeholder="e.g. MatB-TV-ESPN"></div>
-    <div class="form-group"><label>Group</label><select id="fGroup"><option value="TV takers">TV takers</option><option value="UWW+">UWW+</option><option value="Flo">Flo</option><option value="Test">Test</option></select></div>
-    <div class="form-group"><label>Source SRT URL (from KiloLink)</label><input id="fSource" placeholder="srt://127.0.0.1:30100"></div>
-    <div class="form-group"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30200 for listener"></div>
-    <div class="form-row-3">
-      <div class="form-group"><label>Dest mode</label><select id="fDestMode"><option value="caller">Caller (push)</option><option value="listener">Listener (pull)</option></select></div>
-      <div class="form-group"><label>Latency (ms)</label><input id="fLatency" type="number" value="1200"></div>
-      <div class="form-group"><label>Passphrase</label><input id="fPassphrase"></div>
+    <div class="fg"><label>Name</label><input id="fName" placeholder="e.g. MatB-TV-ESPN"></div>
+    <div class="fg"><label>Group</label><select id="fGroup"><option value="TV takers">TV takers</option><option value="UWW+">UWW+</option><option value="Flo">Flo</option><option value="Test">Test</option></select></div>
+    <div class="fg"><label>Source SRT URL (from KiloLink)</label><input id="fSource" placeholder="srt://127.0.0.1:30100"></div>
+    <div class="fg"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30200 for listener"></div>
+    <div class="fr3">
+      <div class="fg"><label>Dest mode</label><select id="fDestMode"><option value="caller">Caller (push)</option><option value="listener">Listener (pull)</option></select></div>
+      <div class="fg"><label>Latency (ms)</label><input id="fLatency" type="number" value="1200"></div>
+      <div class="fg"><label>Passphrase</label><input id="fPassphrase"></div>
     </div>
-    <div class="form-group"><div class="form-check"><input type="checkbox" id="fAutostart"><label for="fAutostart" style="text-transform:none;color:var(--text);font-size:14px">Auto-start on server boot</label></div></div>
-    <div class="form-actions"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveRelay()">Save</button></div>
+    <div class="fg"><div class="fc"><input type="checkbox" id="fAutostart"><label for="fAutostart" style="text-transform:none;color:var(--text);font-size:14px">Auto-start on server boot</label></div></div>
+    <div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveRelay()">Save</button></div>
   </div>
 </div>
 <script>
@@ -123,31 +149,34 @@ function mkChart(cv,lb,cl,un){return new Chart(cv,{type:'line',data:{labels:[],d
 function esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function sig(){const e=Object.entries(relayData);return(currentGroup==='all'?e:e.filter(([,r])=>r.group===currentGroup)).map(([id,r])=>`${id}:${r.running?1:0}`).join('|')}
 function setRefresh(ms){refreshInterval=ms;document.querySelectorAll('.rb').forEach(b=>b.classList.remove('active'));const m={'0':'Pause','3000':'3s','15000':'15s','60000':'1m'};document.querySelectorAll('.rb').forEach(b=>{if(b.textContent===m[ms])b.classList.add('active')});if(refreshTimer)clearInterval(refreshTimer);if(ms>0)refreshTimer=setInterval(poll,ms)}
+function toggleHelp(){document.getElementById('helpPanel').classList.toggle('show')}
+function confirmStartAll(){if(confirm('Start ALL relays?'))startAll()}
+function confirmStopAll(){if(confirm('Stop ALL relays?'))stopAll()}
 function buildCards(){
   for(const k of Object.keys(charts)){charts[k].destroy()}charts={};
   const entries=Object.entries(relayData);
   const filtered=currentGroup==='all'?entries:entries.filter(([,r])=>r.group===currentGroup);
   if(!filtered.length){document.getElementById('relayGrid').innerHTML='<div class="empty"><p>No relays configured</p><button class="btn btn-accent" onclick="showAddModal()">+ Add your first relay</button></div>';return}
   document.getElementById('relayGrid').innerHTML=filtered.map(([id,r])=>{
-    const on=r.running,dm=r.destMode||'caller',hasReset=!!r.resetPoint,isResetView=viewMode[id]==='reset';
+    const on=r.running,dm=r.destMode||'caller',hasReset=!!r.resetPoint,isRV=viewMode[id]==='reset',hasStats=on&&r.stats;
     return`<div class="relay-card ${on?'running':'stopped'}">
-      <div class="relay-header"><div class="relay-name"><span class="dot ${on?'on':'off'}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div>
-      <div class="relay-body">
-        <div class="relay-endpoints"><div class="endpoint"><span class="ep-dot ${on?'on':'off'}"></span>${esc(r.source)}</div><div class="endpoint-arrow">&#8594;</div><div class="endpoint">${esc(r.destination)}<span class="mode-badge">${dm}</span></div></div>
-        <div class="relay-stats">
-          <div class="mini-stat"><div class="ms-label">Bitrate out</div><div class="ms-value" style="color:var(--blue)" id="v-br-${id}">—</div></div>
-          <div class="mini-stat"><div class="ms-label">RTT</div><div class="ms-value" style="color:var(--purple)" id="v-rtt-${id}">—</div></div>
-          <div class="mini-stat"><div class="ms-label">Pkt loss</div><div class="ms-value" id="v-loss-${id}">—</div></div>
-          <div class="mini-stat"><div class="ms-label">Retrans</div><div class="ms-value" style="color:var(--green)" id="v-ret-${id}">—</div></div>
-          <div class="mini-stat"><div class="ms-label">Dropped</div><div class="ms-value" id="v-drop-${id}">—</div></div>
-          <div class="mini-stat"><div class="ms-label">Stats pts</div><div class="ms-value" id="v-pts-${id}">—</div></div>
+      <div class="rh"><div class="rn"><span class="dot ${on?'on':'off'}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div>
+      <div class="rb2">
+        <div class="re"><div class="ep"><span class="ep-dot ${on?'on':'off'}" id="src-dot-${id}"></span>${esc(r.source)}</div><div class="ea">&#8594;</div><div class="ep"><span class="ep-dot ${hasStats?'on':'off'}" id="dst-dot-${id}"></span>${esc(r.destination)}<span class="mb">${dm}</span></div></div>
+        <div class="rs">
+          <div class="ms"><div class="ml">Bitrate out</div><div class="mv" style="color:var(--blue)" id="v-br-${id}">—</div></div>
+          <div class="ms"><div class="ml">RTT</div><div class="mv" style="color:var(--purple)" id="v-rtt-${id}">—</div></div>
+          <div class="ms"><div class="ml">Pkt loss</div><div class="mv" id="v-loss-${id}">—</div></div>
+          <div class="ms"><div class="ml">Retrans</div><div class="mv" style="color:var(--green)" id="v-ret-${id}">—</div></div>
+          <div class="ms"><div class="ml">Dropped</div><div class="mv" id="v-drop-${id}">—</div></div>
+          <div class="ms"><div class="ml">Stats pts</div><div class="mv" id="v-pts-${id}">—</div></div>
         </div>
       </div>
-      ${on?`<div class="chart-container"><div class="chart-row"><div class="chart-box"><div class="chart-title" style="color:var(--blue)">Bitrate out (Mbps)</div><div class="chart-wrap"><canvas id="c-br-${id}"></canvas></div></div><div class="chart-box"><div class="chart-title" style="color:var(--purple)">RTT (ms)</div><div class="chart-wrap"><canvas id="c-rtt-${id}"></canvas></div></div></div><div class="chart-row"><div class="chart-box"><div class="chart-title" style="color:var(--amber)">Packet loss</div><div class="chart-wrap"><canvas id="c-loss-${id}"></canvas></div></div><div class="chart-box"><div class="chart-title" style="color:var(--green)">Retransmits</div><div class="chart-wrap"><canvas id="c-ret-${id}"></canvas></div></div></div></div>`:''}
-      <div class="relay-actions">
+      ${on?`<div class="cc"><div class="cr"><div class="cb"><div class="ct" style="color:var(--blue)">Bitrate out (Mbps)</div><div class="cw"><canvas id="c-br-${id}"></canvas></div></div><div class="cb"><div class="ct" style="color:var(--purple)">RTT (ms)</div><div class="cw"><canvas id="c-rtt-${id}"></canvas></div></div></div><div class="cr"><div class="cb"><div class="ct" style="color:var(--amber)">Packet loss</div><div class="cw"><canvas id="c-loss-${id}"></canvas></div></div><div class="cb"><div class="ct" style="color:var(--green)">Retransmits</div><div class="cw"><canvas id="c-ret-${id}"></canvas></div></div></div></div>`:''}
+      <div class="ra">
         <div class="left">
-          ${on?`<button class="btn-xs btn ${isResetView?'btn-accent':''}" onclick="resetStats('${id}')" title="Start counting from now">Reset stats</button>`:''}
-          ${on&&hasReset?`<button class="btn-xs btn ${!isResetView?'btn-accent':''}" onclick="showFullHistory('${id}')" title="Show last 20 minutes">Last 20 min</button><span class="reset-badge">Reset: ${new Date(r.resetPoint).toLocaleTimeString()}</span>`:''}
+          ${on?`<button class="btn-xs btn ${isRV?'btn-accent':''}" onclick="resetStats('${id}')">Reset stats</button>`:''}
+          ${on&&hasReset?`<button class="btn-xs btn ${!isRV?'btn-accent':''}" onclick="showFull('${id}')">Last 20 min</button><span class="reset-badge">Reset: ${new Date(r.resetPoint).toLocaleTimeString()}</span>`:''}
         </div>
         ${on?`<button class="btn btn-red btn-sm" onclick="stopRelay('${id}')">Stop</button>`:`<button class="btn btn-green btn-sm" onclick="startRelay('${id}')">Start</button>`}
         <button class="btn btn-sm" onclick="editRelay('${id}')">Edit</button>
@@ -156,22 +185,22 @@ function buildCards(){
     </div>`}).join('');
   for(const[id,r]of filtered){if(!r.running)continue;
     const b=document.getElementById(`c-br-${id}`),t=document.getElementById(`c-rtt-${id}`),l=document.getElementById(`c-loss-${id}`),re=document.getElementById(`c-ret-${id}`);
-    if(b)charts[`br-${id}`]=mkChart(b,'Bitrate',CL.br,'Mbps');
-    if(t)charts[`rtt-${id}`]=mkChart(t,'RTT',CL.rtt,'ms');
-    if(l)charts[`loss-${id}`]=mkChart(l,'Pkt loss',CL.loss,'pkts');
-    if(re)charts[`ret-${id}`]=mkChart(re,'Retrans',CL.ret,'pkts');}
+    if(b)charts[`br-${id}`]=mkChart(b,'Bitrate',CL.br,'Mbps');if(t)charts[`rtt-${id}`]=mkChart(t,'RTT',CL.rtt,'ms');
+    if(l)charts[`loss-${id}`]=mkChart(l,'Pkt loss',CL.loss,'pkts');if(re)charts[`ret-${id}`]=mkChart(re,'Retrans',CL.ret,'pkts');}
 }
 function updateValues(){
-  const entries=Object.entries(relayData);
+  const entries=Object.entries(relayData);const running=entries.filter(([,r])=>r.running).length;
   document.getElementById('totalRelays').textContent=entries.length;
-  const running=entries.filter(([,r])=>r.running).length;
   document.getElementById('runningRelays').textContent=running;
   document.getElementById('stoppedRelays').textContent=entries.length-running;
-  document.getElementById('totalBitrate').textContent=entries.reduce((s,[,r])=>s+(r.stats?r.stats.sendRate:0),0).toFixed(1);
+  document.getElementById('totalBitrate').textContent=entries.filter(([,r])=>r.running).reduce((s,[,r])=>s+(r.stats?r.stats.sendRate:0),0).toFixed(1);
   const groups=['all',...new Set(entries.map(([,r])=>r.group||'default'))];
-  document.getElementById('groupTabs').innerHTML=groups.map(g=>`<div class="group-tab ${currentGroup===g?'active':''}" onclick="setGroup('${g}')">${g==='all'?'All':g} (${g==='all'?entries.length:entries.filter(([,r])=>r.group===g).length})</div>`).join('');
-  for(const[id,r]of entries){const s=r.stats||{},el=x=>document.getElementById(x);
-    const stEl=el(`st-${id}`);if(stEl)stEl.textContent=r.running?'Running'+(r.startedAt?' since '+new Date(r.startedAt).toLocaleTimeString():'')+(r.autostart?' · auto':''):'Stopped';
+  document.getElementById('groupTabs').innerHTML=groups.map(g=>`<div class="gt ${currentGroup===g?'active':''}" onclick="setGroup('${g}')">${g==='all'?'All':g} (${g==='all'?entries.length:entries.filter(([,r])=>r.group===g).length})</div>`).join('');
+  for(const[id,r]of entries){const s=r.stats||{},el=x=>document.getElementById(x),on=r.running;
+    const stEl=el(`st-${id}`);if(stEl)stEl.textContent=on?'Running'+(r.startedAt?' since '+new Date(r.startedAt).toLocaleTimeString():'')+(r.autostart?' · auto':''):'Stopped';
+    const srcDot=el(`src-dot-${id}`);if(srcDot){srcDot.className='ep-dot '+(on?'on':'off')}
+    const dstDot=el(`dst-dot-${id}`);if(dstDot){dstDot.className='ep-dot '+((on&&s.sendRate>0)?'on':'off')}
+    if(!on){['v-br-','v-rtt-','v-loss-','v-ret-','v-drop-','v-pts-'].forEach(p=>{const e=el(p+id);if(e)e.innerHTML='—'});continue}
     const brEl=el(`v-br-${id}`);if(brEl)brEl.innerHTML=s.sendRate?s.sendRate.toFixed(1)+' <small>Mbps</small>':'—';
     const rttEl=el(`v-rtt-${id}`);if(rttEl)rttEl.innerHTML=s.rtt?s.rtt.toFixed(1)+' <small>ms</small>':'—';
     const lEl=el(`v-loss-${id}`);if(lEl){lEl.textContent=s.sndLoss??'—';lEl.style.color=(s.sndLoss||0)>0?'var(--amber)':'var(--green)'}
@@ -180,10 +209,8 @@ function updateValues(){
     const pEl=el(`v-pts-${id}`);if(pEl)pEl.textContent=s.statsLines??'—';}
 }
 async function updateCharts(){
-  for(const[id,r]of Object.entries(relayData)){if(!r.running)continue;
-    const sinceReset=viewMode[id]==='reset'&&r.resetPoint;
-    try{const resp=await fetch(`/api/relays/${id}/history?lines=240${sinceReset?'&sinceReset=true':''}`);
-      const h=await resp.json();if(h.length<2)continue;
+  for(const[id,r]of Object.entries(relayData)){if(!r.running)continue;const sr=viewMode[id]==='reset'&&r.resetPoint;
+    try{const resp=await fetch(`/api/relays/${id}/history?lines=240${sr?'&sinceReset=true':''}`);const h=await resp.json();if(h.length<2)continue;
       const labels=h.map(d=>d.time?d.time.split('T')[1]?.split('+')[0]?.slice(0,8)||'':'');
       const upd=(k,v)=>{if(!charts[k])return;charts[k].data.labels=labels;charts[k].data.datasets[0].data=v;charts[k].update('none')};
       upd(`br-${id}`,h.map(d=>d.sendRate));upd(`rtt-${id}`,h.map(d=>d.rtt));upd(`loss-${id}`,h.map(d=>d.sndLoss));upd(`ret-${id}`,h.map(d=>d.retrans));
@@ -197,7 +224,7 @@ async function startAll(){await fetch('/api/relays/start-all',{method:'POST'});p
 async function stopAll(){await fetch('/api/relays/stop-all',{method:'POST'});prevSig='';setTimeout(poll,1000)}
 async function deleteRelay(id){if(!confirm('Delete this relay?'))return;await fetch(`/api/relays/${id}`,{method:'DELETE'});prevSig='';setTimeout(poll,300)}
 async function resetStats(id){await fetch(`/api/relays/${id}/reset-stats`,{method:'POST'});viewMode[id]='reset';prevSig='';poll()}
-async function showFullHistory(id){await fetch(`/api/relays/${id}/clear-reset`,{method:'POST'});viewMode[id]='full';prevSig='';poll()}
+async function showFull(id){await fetch(`/api/relays/${id}/clear-reset`,{method:'POST'});viewMode[id]='full';prevSig='';poll()}
 function showAddModal(){document.getElementById('modalTitle').textContent='Add relay';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fSource').value='srt://127.0.0.1:30100';document.getElementById('fDest').value='';document.getElementById('fDestMode').value='caller';document.getElementById('fLatency').value='1200';document.getElementById('fPassphrase').value='';document.getElementById('fAutostart').checked=false;document.getElementById('fGroup').value='TV takers';document.getElementById('modalOverlay').classList.add('show')}
 function editRelay(id){const r=relayData[id];if(!r)return;document.getElementById('modalTitle').textContent='Edit relay';document.getElementById('editId').value=id;document.getElementById('fName').value=r.name;document.getElementById('fSource').value=r.source;document.getElementById('fDest').value=r.destination;document.getElementById('fDestMode').value=r.destMode||'caller';document.getElementById('fLatency').value=r.latency||'1200';document.getElementById('fPassphrase').value=r.passphrase||'';document.getElementById('fAutostart').checked=r.autostart||false;document.getElementById('fGroup').value=r.group||'TV takers';document.getElementById('modalOverlay').classList.add('show')}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show')}
