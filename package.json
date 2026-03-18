@@ -1,0 +1,13 @@
+{
+  "name": "uww-srt-relay-panel",
+  "version": "1.0.0",
+  "description": "UWW SRT Relay Management Panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "csv-parse": "^5.5.0"
+  }
+}

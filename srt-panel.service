@@ -1,0 +1,14 @@
+[Unit]
+Description=UWW SRT Relay Management Panel
+After=network.target docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/srt-panel
+ExecStart=/usr/bin/node /opt/srt-panel/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
