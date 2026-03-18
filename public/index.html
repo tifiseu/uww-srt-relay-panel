@@ -8,10 +8,10 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box}
-  :root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--green:#22c55e;--green-bg:#052e16;--red:#ef4444;--red-bg:#2a0a0a;--blue:#3b82f6;--blue-bg:#0c1e3d;--amber:#f59e0b;--purple:#a78bfa;--border:#1e293b;--accent:#6366f1}
+  :root{--bg:#0a0e17;--bg2:#111827;--bg3:#1a2236;--bg4:#243049;--text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--green:#22c55e;--green-bg:#052e16;--red:#ef4444;--red-bg:#2a0a0a;--blue:#3b82f6;--amber:#f59e0b;--purple:#a78bfa;--border:#1e293b;--accent:#6366f1}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
   header{background:var(--bg2);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-  header h1{font-size:18px;font-weight:700;letter-spacing:-0.5px}header h1 span{color:var(--accent)}
+  header h1{font-size:18px;font-weight:700}header h1 span{color:var(--accent)}
   .header-actions{display:flex;gap:8px;align-items:center}
   .container{max-width:1400px;margin:0 auto;padding:24px}
   .stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
@@ -19,38 +19,41 @@
   .stat-card .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px}
   .stat-card .value{font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace}
   .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
-  .group-tabs{display:flex;gap:4px}
+  .group-tabs{display:flex;gap:4px;flex-wrap:wrap}
   .group-tab{padding:6px 14px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:13px;transition:all .15s}
   .group-tab.active,.group-tab:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .refresh-bar{display:flex;gap:4px;align-items:center}
-  .refresh-btn{padding:4px 10px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace;transition:all .15s}
-  .refresh-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
-  .refresh-btn:hover{background:var(--bg4)}
+  .refresh-bar{display:flex;gap:3px;align-items:center}
+  .rb{padding:4px 8px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:10px;font-family:'JetBrains Mono',monospace;transition:all .15s}
+  .rb.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .rb:hover{background:var(--bg4)}
   .btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
   .btn:hover{background:var(--bg4)}
-  .btn-green{background:var(--green-bg);border-color:#166534;color:var(--green)}.btn-green:hover{background:#0a3d1e}
-  .btn-red{background:var(--red-bg);border-color:#7f1d1d;color:var(--red)}.btn-red:hover{background:#3d0a0a}
-  .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}.btn-accent:hover{opacity:.9}
+  .btn-green{background:var(--green-bg);border-color:#166534;color:var(--green)}
+  .btn-red{background:var(--red-bg);border-color:#7f1d1d;color:var(--red)}
+  .btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn-sm{padding:4px 10px;font-size:12px}
+  .btn-xs{padding:2px 8px;font-size:10px;border-radius:4px}
   .relay-grid{display:grid;gap:12px}
-  .relay-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s}
+  .relay-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .relay-card.running{border-color:#166534}.relay-card.stopped{border-color:#7f1d1d}
   .relay-header{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
   .relay-name{font-weight:700;font-size:15px;display:flex;align-items:center;gap:10px}
-  .status-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-  .status-dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}.status-dot.off{background:var(--red);opacity:.6}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .dot.on{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.off{background:var(--red);opacity:.6}
+  .ep-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .ep-dot.on{background:var(--green)}.ep-dot.off{background:var(--text3)}
   .relay-body{padding:14px 18px}
   .relay-endpoints{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px}
   .endpoint{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);background:var(--bg);padding:8px 10px;border-radius:6px;word-break:break-all;display:flex;align-items:center;gap:6px}
-  .ep-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-  .ep-dot.on{background:var(--green)}.ep-dot.off{background:var(--text3)}
   .endpoint-arrow{color:var(--accent);font-size:18px;text-align:center}
-  .mode-badge{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:var(--bg3);color:var(--text3);margin-left:4px}
+  .mode-badge{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:var(--bg3);color:var(--text3);margin-left:auto;flex-shrink:0}
   .relay-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
   .mini-stat{background:var(--bg);border-radius:6px;padding:8px 10px}
   .mini-stat .ms-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}
   .mini-stat .ms-value{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px}
-  .relay-actions{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end}
+  .relay-actions{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;align-items:center}
+  .relay-actions .left{margin-right:auto;display:flex;gap:6px;align-items:center}
+  .reset-badge{font-size:10px;color:var(--amber);font-family:'JetBrains Mono',monospace}
   .chart-container{padding:0 18px 14px 18px}
   .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
   .chart-box{background:var(--bg);border-radius:8px;padding:10px 12px}
@@ -77,11 +80,10 @@
   <h1><span>UWW</span> SRT Relay Panel</h1>
   <div class="header-actions">
     <div class="refresh-bar">
-      <span style="font-size:11px;color:var(--text3);margin-right:4px">Refresh:</span>
-      <button class="refresh-btn" onclick="setRefresh(0)">Pause</button>
-      <button class="refresh-btn active" onclick="setRefresh(3000)">3s</button>
-      <button class="refresh-btn" onclick="setRefresh(15000)">15s</button>
-      <button class="refresh-btn" onclick="setRefresh(60000)">1m</button>
+      <button class="rb" onclick="setRefresh(0)">Pause</button>
+      <button class="rb active" onclick="setRefresh(3000)">3s</button>
+      <button class="rb" onclick="setRefresh(15000)">15s</button>
+      <button class="rb" onclick="setRefresh(60000)">1m</button>
     </div>
     <button class="btn btn-green" onclick="startAll()">Start all</button>
     <button class="btn btn-red" onclick="stopAll()">Stop all</button>
@@ -104,9 +106,9 @@
     <div class="form-group"><label>Name</label><input id="fName" placeholder="e.g. MatB-TV-ESPN"></div>
     <div class="form-group"><label>Group</label><select id="fGroup"><option value="TV takers">TV takers</option><option value="UWW+">UWW+</option><option value="Flo">Flo</option><option value="Test">Test</option></select></div>
     <div class="form-group"><label>Source SRT URL (from KiloLink)</label><input id="fSource" placeholder="srt://127.0.0.1:30100"></div>
-    <div class="form-group"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://destination.host:port or srt://:30200 for listener"></div>
+    <div class="form-group"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30200 for listener"></div>
     <div class="form-row-3">
-      <div class="form-group"><label>Destination mode</label><select id="fDestMode"><option value="caller">Caller (push)</option><option value="listener">Listener (they pull)</option></select></div>
+      <div class="form-group"><label>Dest mode</label><select id="fDestMode"><option value="caller">Caller (push)</option><option value="listener">Listener (pull)</option></select></div>
       <div class="form-group"><label>Latency (ms)</label><input id="fLatency" type="number" value="1200"></div>
       <div class="form-group"><label>Passphrase</label><input id="fPassphrase"></div>
     </div>
@@ -115,41 +117,23 @@
   </div>
 </div>
 <script>
-let currentGroup='all',relayData={},prevSig='',charts={},refreshInterval=3000,refreshTimer=null;
-
-const CL={sendRate:{l:'#3b82f6',f:'rgba(59,130,246,0.1)'},rtt:{l:'#a78bfa',f:'rgba(167,139,250,0.1)'},loss:{l:'#f59e0b',f:'rgba(245,158,11,0.1)'},ret:{l:'#22c55e',f:'rgba(34,197,94,0.1)'},drop:{l:'#ef4444',f:'rgba(239,68,68,0.1)'}};
-
-function mkChart(canvas,label,color,unit){
-  return new Chart(canvas,{type:'line',data:{labels:[],datasets:[{label,data:[],borderColor:color.l,backgroundColor:color.f,fill:true}]},
-  options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1a2236',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'#1e293b',borderWidth:1,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11},callbacks:{label:c=>`${label}: ${c.parsed.y?.toFixed(2)} ${unit}`}}},scales:{x:{display:true,ticks:{display:false},grid:{color:'rgba(30,41,59,0.5)',drawTicks:false},border:{display:false}},y:{display:true,ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},maxTicksLimit:4},grid:{color:'rgba(30,41,59,0.5)'},border:{display:false},beginAtZero:true}},elements:{point:{radius:0},line:{tension:0.3,borderWidth:1.5}}}});
-}
+let currentGroup='all',relayData={},prevSig='',charts={},viewMode={},refreshInterval=3000,refreshTimer=null;
+const CL={br:{l:'#3b82f6',f:'rgba(59,130,246,0.1)'},rtt:{l:'#a78bfa',f:'rgba(167,139,250,0.1)'},loss:{l:'#f59e0b',f:'rgba(245,158,11,0.1)'},ret:{l:'#22c55e',f:'rgba(34,197,94,0.1)'}};
+function mkChart(cv,lb,cl,un){return new Chart(cv,{type:'line',data:{labels:[],datasets:[{label:lb,data:[],borderColor:cl.l,backgroundColor:cl.f,fill:true}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1a2236',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'#1e293b',borderWidth:1,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11},callbacks:{label:c=>`${lb}: ${c.parsed.y?.toFixed(2)} ${un}`}}},scales:{x:{display:true,ticks:{display:false},grid:{color:'rgba(30,41,59,0.5)',drawTicks:false},border:{display:false}},y:{display:true,ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},maxTicksLimit:4},grid:{color:'rgba(30,41,59,0.5)'},border:{display:false},beginAtZero:true}},elements:{point:{radius:0},line:{tension:0.3,borderWidth:1.5}}}})}
 function esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function sig(){const e=Object.entries(relayData);const f=currentGroup==='all'?e:e.filter(([,r])=>r.group===currentGroup);return f.map(([id,r])=>`${id}:${r.running?1:0}`).join('|')}
-
-function setRefresh(ms){
-  refreshInterval=ms;
-  document.querySelectorAll('.refresh-btn').forEach(b=>b.classList.remove('active'));
-  const labels={'0':'Pause','3000':'3s','15000':'15s','60000':'1m'};
-  document.querySelectorAll('.refresh-btn').forEach(b=>{if(b.textContent===labels[ms])b.classList.add('active')});
-  if(refreshTimer)clearInterval(refreshTimer);
-  if(ms>0)refreshTimer=setInterval(poll,ms);
-}
-
+function sig(){const e=Object.entries(relayData);return(currentGroup==='all'?e:e.filter(([,r])=>r.group===currentGroup)).map(([id,r])=>`${id}:${r.running?1:0}`).join('|')}
+function setRefresh(ms){refreshInterval=ms;document.querySelectorAll('.rb').forEach(b=>b.classList.remove('active'));const m={'0':'Pause','3000':'3s','15000':'15s','60000':'1m'};document.querySelectorAll('.rb').forEach(b=>{if(b.textContent===m[ms])b.classList.add('active')});if(refreshTimer)clearInterval(refreshTimer);if(ms>0)refreshTimer=setInterval(poll,ms)}
 function buildCards(){
   for(const k of Object.keys(charts)){charts[k].destroy()}charts={};
   const entries=Object.entries(relayData);
   const filtered=currentGroup==='all'?entries:entries.filter(([,r])=>r.group===currentGroup);
   if(!filtered.length){document.getElementById('relayGrid').innerHTML='<div class="empty"><p>No relays configured</p><button class="btn btn-accent" onclick="showAddModal()">+ Add your first relay</button></div>';return}
   document.getElementById('relayGrid').innerHTML=filtered.map(([id,r])=>{
-    const on=r.running;const dm=r.destMode||'caller';
-    return`<div class="relay-card ${on?'running':'stopped'}" id="card-${id}">
-      <div class="relay-header"><div class="relay-name"><span class="status-dot ${on?'on':'off'}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div>
+    const on=r.running,dm=r.destMode||'caller',hasReset=!!r.resetPoint,isResetView=viewMode[id]==='reset';
+    return`<div class="relay-card ${on?'running':'stopped'}">
+      <div class="relay-header"><div class="relay-name"><span class="dot ${on?'on':'off'}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div>
       <div class="relay-body">
-        <div class="relay-endpoints">
-          <div class="endpoint"><span class="ep-dot ${on?'on':'off'}"></span>${esc(r.source)}</div>
-          <div class="endpoint-arrow">&#8594;</div>
-          <div class="endpoint">${esc(r.destination)}<span class="mode-badge">${dm}</span></div>
-        </div>
+        <div class="relay-endpoints"><div class="endpoint"><span class="ep-dot ${on?'on':'off'}"></span>${esc(r.source)}</div><div class="endpoint-arrow">&#8594;</div><div class="endpoint">${esc(r.destination)}<span class="mode-badge">${dm}</span></div></div>
         <div class="relay-stats">
           <div class="mini-stat"><div class="ms-label">Bitrate out</div><div class="ms-value" style="color:var(--blue)" id="v-br-${id}">—</div></div>
           <div class="mini-stat"><div class="ms-label">RTT</div><div class="ms-value" style="color:var(--purple)" id="v-rtt-${id}">—</div></div>
@@ -160,65 +144,60 @@ function buildCards(){
         </div>
       </div>
       ${on?`<div class="chart-container"><div class="chart-row"><div class="chart-box"><div class="chart-title" style="color:var(--blue)">Bitrate out (Mbps)</div><div class="chart-wrap"><canvas id="c-br-${id}"></canvas></div></div><div class="chart-box"><div class="chart-title" style="color:var(--purple)">RTT (ms)</div><div class="chart-wrap"><canvas id="c-rtt-${id}"></canvas></div></div></div><div class="chart-row"><div class="chart-box"><div class="chart-title" style="color:var(--amber)">Packet loss</div><div class="chart-wrap"><canvas id="c-loss-${id}"></canvas></div></div><div class="chart-box"><div class="chart-title" style="color:var(--green)">Retransmits</div><div class="chart-wrap"><canvas id="c-ret-${id}"></canvas></div></div></div></div>`:''}
-      <div class="relay-actions">${on?`<button class="btn btn-red btn-sm" onclick="stopRelay('${id}')">Stop</button>`:`<button class="btn btn-green btn-sm" onclick="startRelay('${id}')">Start</button>`}<button class="btn btn-sm" onclick="editRelay('${id}')">Edit</button><button class="btn btn-sm" onclick="deleteRelay('${id}')">Delete</button></div>
+      <div class="relay-actions">
+        <div class="left">
+          ${on?`<button class="btn-xs btn ${isResetView?'btn-accent':''}" onclick="resetStats('${id}')" title="Start counting from now">Reset stats</button>`:''}
+          ${on&&hasReset?`<button class="btn-xs btn ${!isResetView?'btn-accent':''}" onclick="showFullHistory('${id}')" title="Show last 20 minutes">Last 20 min</button><span class="reset-badge">Reset: ${new Date(r.resetPoint).toLocaleTimeString()}</span>`:''}
+        </div>
+        ${on?`<button class="btn btn-red btn-sm" onclick="stopRelay('${id}')">Stop</button>`:`<button class="btn btn-green btn-sm" onclick="startRelay('${id}')">Start</button>`}
+        <button class="btn btn-sm" onclick="editRelay('${id}')">Edit</button>
+        <button class="btn btn-sm" onclick="deleteRelay('${id}')">Delete</button>
+      </div>
     </div>`}).join('');
   for(const[id,r]of filtered){if(!r.running)continue;
     const b=document.getElementById(`c-br-${id}`),t=document.getElementById(`c-rtt-${id}`),l=document.getElementById(`c-loss-${id}`),re=document.getElementById(`c-ret-${id}`);
-    if(b)charts[`br-${id}`]=mkChart(b,'Bitrate',CL.sendRate,'Mbps');
+    if(b)charts[`br-${id}`]=mkChart(b,'Bitrate',CL.br,'Mbps');
     if(t)charts[`rtt-${id}`]=mkChart(t,'RTT',CL.rtt,'ms');
     if(l)charts[`loss-${id}`]=mkChart(l,'Pkt loss',CL.loss,'pkts');
-    if(re)charts[`ret-${id}`]=mkChart(re,'Retrans',CL.ret,'pkts');
-  }
+    if(re)charts[`ret-${id}`]=mkChart(re,'Retrans',CL.ret,'pkts');}
 }
-
 function updateValues(){
   const entries=Object.entries(relayData);
-  const running=entries.filter(([,r])=>r.running).length;
   document.getElementById('totalRelays').textContent=entries.length;
+  const running=entries.filter(([,r])=>r.running).length;
   document.getElementById('runningRelays').textContent=running;
   document.getElementById('stoppedRelays').textContent=entries.length-running;
   document.getElementById('totalBitrate').textContent=entries.reduce((s,[,r])=>s+(r.stats?r.stats.sendRate:0),0).toFixed(1);
   const groups=['all',...new Set(entries.map(([,r])=>r.group||'default'))];
   document.getElementById('groupTabs').innerHTML=groups.map(g=>`<div class="group-tab ${currentGroup===g?'active':''}" onclick="setGroup('${g}')">${g==='all'?'All':g} (${g==='all'?entries.length:entries.filter(([,r])=>r.group===g).length})</div>`).join('');
-  for(const[id,r]of entries){
-    const s=r.stats||{},el=x=>document.getElementById(x);
+  for(const[id,r]of entries){const s=r.stats||{},el=x=>document.getElementById(x);
     const stEl=el(`st-${id}`);if(stEl)stEl.textContent=r.running?'Running'+(r.startedAt?' since '+new Date(r.startedAt).toLocaleTimeString():'')+(r.autostart?' · auto':''):'Stopped';
     const brEl=el(`v-br-${id}`);if(brEl)brEl.innerHTML=s.sendRate?s.sendRate.toFixed(1)+' <small>Mbps</small>':'—';
     const rttEl=el(`v-rtt-${id}`);if(rttEl)rttEl.innerHTML=s.rtt?s.rtt.toFixed(1)+' <small>ms</small>':'—';
-    const lEl=el(`v-loss-${id}`);if(lEl){lEl.textContent=s.sndLossTotal??'—';lEl.style.color=s.sndLossTotal>0?'var(--amber)':'var(--green)'}
-    const reEl=el(`v-ret-${id}`);if(reEl)reEl.textContent=s.retransTotal??'—';
-    const dEl=el(`v-drop-${id}`);if(dEl){dEl.textContent=s.sndDropTotal??'—';dEl.style.color=s.sndDropTotal>0?'var(--red)':'var(--green)'}
-    const pEl=el(`v-pts-${id}`);if(pEl)pEl.textContent=s.statsLines??'—';
-  }
+    const lEl=el(`v-loss-${id}`);if(lEl){lEl.textContent=s.sndLoss??'—';lEl.style.color=(s.sndLoss||0)>0?'var(--amber)':'var(--green)'}
+    const reEl=el(`v-ret-${id}`);if(reEl)reEl.textContent=s.retrans??'—';
+    const dEl=el(`v-drop-${id}`);if(dEl){dEl.textContent=s.sndDrop??'—';dEl.style.color=(s.sndDrop||0)>0?'var(--red)':'var(--green)'}
+    const pEl=el(`v-pts-${id}`);if(pEl)pEl.textContent=s.statsLines??'—';}
 }
-
 async function updateCharts(){
-  for(const[id,r]of Object.entries(relayData)){
-    if(!r.running)continue;
-    try{
-      const resp=await fetch(`/api/relays/${id}/history?lines=240`);
+  for(const[id,r]of Object.entries(relayData)){if(!r.running)continue;
+    const sinceReset=viewMode[id]==='reset'&&r.resetPoint;
+    try{const resp=await fetch(`/api/relays/${id}/history?lines=240${sinceReset?'&sinceReset=true':''}`);
       const h=await resp.json();if(h.length<2)continue;
       const labels=h.map(d=>d.time?d.time.split('T')[1]?.split('+')[0]?.slice(0,8)||'':'');
-      const upd=(k,vals)=>{if(!charts[k])return;charts[k].data.labels=labels;charts[k].data.datasets[0].data=vals;charts[k].update('none')};
+      const upd=(k,v)=>{if(!charts[k])return;charts[k].data.labels=labels;charts[k].data.datasets[0].data=v;charts[k].update('none')};
       upd(`br-${id}`,h.map(d=>d.sendRate));upd(`rtt-${id}`,h.map(d=>d.rtt));upd(`loss-${id}`,h.map(d=>d.sndLoss));upd(`ret-${id}`,h.map(d=>d.retrans));
-    }catch(e){}
-  }
+    }catch(e){}}
 }
-
-async function poll(){
-  try{
-    const r=await fetch('/api/relays');relayData=await r.json();
-    const s=sig();if(s!==prevSig){prevSig=s;buildCards()}
-    updateValues();await updateCharts();
-  }catch(e){console.error(e)}
-}
-
+async function poll(){try{const r=await fetch('/api/relays');relayData=await r.json();const s=sig();if(s!==prevSig){prevSig=s;buildCards()}updateValues();await updateCharts()}catch(e){console.error(e)}}
 function setGroup(g){currentGroup=g;prevSig='';poll()}
 async function startRelay(id){await fetch(`/api/relays/${id}/start`,{method:'POST'});prevSig='';setTimeout(poll,600)}
 async function stopRelay(id){await fetch(`/api/relays/${id}/stop`,{method:'POST'});prevSig='';setTimeout(poll,600)}
 async function startAll(){await fetch('/api/relays/start-all',{method:'POST'});prevSig='';setTimeout(poll,1000)}
 async function stopAll(){await fetch('/api/relays/stop-all',{method:'POST'});prevSig='';setTimeout(poll,1000)}
-async function deleteRelay(id){if(!confirm('Delete this relay?'))return;await fetch(`/api/relays/${id}`,{method:'DELETE'});prevSig='';poll()}
+async function deleteRelay(id){if(!confirm('Delete this relay?'))return;await fetch(`/api/relays/${id}`,{method:'DELETE'});prevSig='';setTimeout(poll,300)}
+async function resetStats(id){await fetch(`/api/relays/${id}/reset-stats`,{method:'POST'});viewMode[id]='reset';prevSig='';poll()}
+async function showFullHistory(id){await fetch(`/api/relays/${id}/clear-reset`,{method:'POST'});viewMode[id]='full';prevSig='';poll()}
 function showAddModal(){document.getElementById('modalTitle').textContent='Add relay';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fSource').value='srt://127.0.0.1:30100';document.getElementById('fDest').value='';document.getElementById('fDestMode').value='caller';document.getElementById('fLatency').value='1200';document.getElementById('fPassphrase').value='';document.getElementById('fAutostart').checked=false;document.getElementById('fGroup').value='TV takers';document.getElementById('modalOverlay').classList.add('show')}
 function editRelay(id){const r=relayData[id];if(!r)return;document.getElementById('modalTitle').textContent='Edit relay';document.getElementById('editId').value=id;document.getElementById('fName').value=r.name;document.getElementById('fSource').value=r.source;document.getElementById('fDest').value=r.destination;document.getElementById('fDestMode').value=r.destMode||'caller';document.getElementById('fLatency').value=r.latency||'1200';document.getElementById('fPassphrase').value=r.passphrase||'';document.getElementById('fAutostart').checked=r.autostart||false;document.getElementById('fGroup').value=r.group||'TV takers';document.getElementById('modalOverlay').classList.add('show')}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show')}
