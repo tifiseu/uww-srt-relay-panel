@@ -39,15 +39,24 @@ function getLatestStats(id) {
     const f1 = content[content.length - 1].split(',');
     const f2 = content[content.length - 2].split(',');
     const sender = isSenderLine(f1) ? f1 : f2;
+    const timestamp = f1[0] || '';
+    // Check if stats are stale (older than 10 seconds = connection likely down)
+    let stale = false;
+    try {
+      const statsTime = new Date(timestamp).getTime();
+      const now = Date.now();
+      stale = (now - statsTime) > 10000;
+    } catch(e) { stale = false; }
     return {
-      timestamp: f1[0] || '',
-      rtt: parseFloat(sender[7]) || 0,
-      sendRate: parseFloat(sender[21]) || 0,
-      bandwidth: parseFloat(sender[8]) || 0,
-      sndLoss: parseInt(sender[12]) || 0,
-      retrans: parseInt(sender[14]) || 0,
-      sndDrop: parseInt(sender[13]) || 0,
+      timestamp,
+      rtt: stale ? 0 : (parseFloat(sender[7]) || 0),
+      sendRate: stale ? 0 : (parseFloat(sender[21]) || 0),
+      bandwidth: stale ? 0 : (parseFloat(sender[8]) || 0),
+      sndLoss: stale ? 0 : (parseInt(sender[12]) || 0),
+      retrans: stale ? 0 : (parseInt(sender[14]) || 0),
+      sndDrop: stale ? 0 : (parseInt(sender[13]) || 0),
       totalSent: parseInt(sender[10]) || 0,
+      stale,
       statsFile: files[files.length - 1],
       statsLines: content.length - 1
     };
