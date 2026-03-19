@@ -22,12 +22,26 @@ function loadConfig() {
 function saveConfig() {
   const clean = {};
   for (const [id, r] of Object.entries(relays)) {
-    clean[id] = { name: r.name, source: r.source, destination: r.destination, destMode: r.destMode || 'caller', latency: r.latency, passphrase: r.passphrase, autostart: r.autostart, group: r.group };
+    clean[id] = { name: r.name, source: r.source, destination: r.destination, latency: r.latency, passphrase: r.passphrase, autostart: r.autostart, group: r.group };
   }
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(clean, null, 2));
 }
 
 function isSenderLine(fields) { return (parseFloat(fields[21]) || 0) > 0; }
+
+// Auto-detect SRT mode from URL: no host = listener, has host = caller
+function detectMode(url) {
+  if (!url) return 'caller';
+  // Already has mode= parameter — respect it
+  if (url.includes('mode=')) return null;
+  try {
+    // srt://:30200 → listener (no host, just port)
+    // srt://host:port → caller
+    const match = url.match(/^srt:\/\/([^:/?]*)/);
+    if (!match || !match[1] || match[1] === '') return 'listener';
+    return 'caller';
+  } catch(e) { return 'caller'; }
+}
 
 function getRelayFiles(id) {
   return fs.readdirSync(STATS_DIR).filter(f => f.startsWith(id + '_') && f.endsWith('.csv')).sort();
@@ -146,10 +160,12 @@ function startRelay(id) {
 
   let srcUrl = r.source;
   let dstUrl = r.destination;
-  const destMode = r.destMode || 'caller';
 
-  if (!srcUrl.includes('mode=')) srcUrl += (srcUrl.includes('?') ? '&' : '?') + 'mode=caller';
-  if (!dstUrl.includes('mode=')) dstUrl += (dstUrl.includes('?') ? '&' : '?') + 'mode=' + destMode;
+  // Auto-detect mode from URL: no host = listener, has host = caller
+  const srcMode = detectMode(srcUrl);
+  const dstMode = detectMode(dstUrl);
+  if (srcMode && !srcUrl.includes('mode=')) srcUrl += (srcUrl.includes('?') ? '&' : '?') + 'mode=' + srcMode;
+  if (dstMode && !dstUrl.includes('mode=')) dstUrl += (dstUrl.includes('?') ? '&' : '?') + 'mode=' + dstMode;
   if (r.latency && !dstUrl.includes('latency=')) dstUrl += `&latency=${r.latency}`;
   if (r.passphrase && !dstUrl.includes('passphrase=')) dstUrl += `&passphrase=${r.passphrase}`;
 
@@ -193,18 +209,18 @@ app.get('/api/relays', (req, res) => {
 });
 
 app.post('/api/relays', (req, res) => {
-  const { name, source, destination, destMode, latency, passphrase, autostart, group } = req.body;
+  const { name, source, destination, latency, passphrase, autostart, group } = req.body;
   if (!name || !source || !destination) return res.status(400).json({ error: 'name, source, destination required' });
   const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
   if (relays[id]) return res.status(409).json({ error: 'Relay with this name already exists' });
-  relays[id] = { name, source, destination, destMode: destMode || 'caller', latency: latency || '1200', passphrase: passphrase || '', autostart: autostart || false, group: group || 'default' };
+  relays[id] = { name, source, destination, latency: latency || '1200', passphrase: passphrase || '', autostart: autostart || false, group: group || 'default' };
   saveConfig(); res.json({ ok: true, id });
 });
 
 app.put('/api/relays/:id', (req, res) => {
   const { id } = req.params;
   if (!relays[id]) return res.status(404).json({ error: 'Not found' });
-  for (const f of ['name','source','destination','destMode','latency','passphrase','autostart','group']) { if (req.body[f] !== undefined) relays[id][f] = req.body[f]; }
+  for (const f of ['name','source','destination','latency','passphrase','autostart','group']) { if (req.body[f] !== undefined) relays[id][f] = req.body[f]; }
   saveConfig(); res.json({ ok: true });
 });
 
@@ -243,4 +259,4 @@ if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
 loadConfig();
 setTimeout(() => { for (const [id, r] of Object.entries(relays)) { if (r.autostart) { console.log(`[${id}] Auto-starting...`); startRelay(id); } } }, 2000);
-app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v1.4 running on http://0.0.0.0:${PORT}`); console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`); });
+app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v1.5 running on http://0.0.0.0:${PORT}`); console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`); });

@@ -44,6 +44,7 @@
   .mb{font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:2px 6px;border-radius:3px;background:var(--bg3);color:var(--text3);margin-left:auto;flex-shrink:0}
   .rs{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}
   .ms{background:var(--bg);border-radius:6px;padding:8px 10px}.ms .ml{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)}.ms .mv{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-top:2px}
+  .ms .mv small{font-size:11px;font-weight:400;color:var(--text3)}
   .ra{padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
   .ra .left{margin-right:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
   .reset-badge{font-size:10px;color:var(--amber);font-family:'JetBrains Mono',monospace}
@@ -67,8 +68,10 @@
   .help-panel a{color:var(--accent);text-decoration:none}.help-panel a:hover{text-decoration:underline}
   .help-panel table{width:100%;border-collapse:collapse;margin:8px 0}.help-panel td,.help-panel th{padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);font-size:12px}
   .help-panel th{color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.5px;font-size:10px}
+  .help-warn{background:#2a1a00;border:1px solid #854f0b;border-radius:6px;padding:8px 12px;margin:8px 0;color:var(--amber);font-size:12px}
   .links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
   .links a{padding:6px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;text-decoration:none;transition:all .15s}.links a:hover{background:var(--bg4);color:var(--text)}
+  .mode-hint{font-size:10px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace}
   @media(max-width:768px){.re{grid-template-columns:1fr}.ea{transform:rotate(90deg)}.fr,.fr3,.cr{grid-template-columns:1fr}}
 </style>
 </head>
@@ -92,6 +95,12 @@
   <div class="help-panel" id="helpPanel">
     <h3>Quick reference</h3>
     <p>Each relay takes an SRT stream from KiloLink (source) and pushes/serves it to a destination (TV taker, Brightcove, Flo, EVS).</p>
+    <h3>Auto mode detection</h3>
+    <p>Mode is detected automatically from the URL — no dropdown needed:</p>
+    <table><tr><th>URL format</th><th>Mode</th><th>Meaning</th></tr>
+    <tr><td><code>srt://host:port</code></td><td>Caller</td><td>Connects to remote host</td></tr>
+    <tr><td><code>srt://:port</code></td><td>Listener</td><td>Opens port, waits for connection</td></tr></table>
+    <p>You can override by adding <code>?mode=caller</code> or <code>?mode=listener</code> to the URL manually.</p>
     <h3>KiloLink SRT source ports (localhost)</h3>
     <table><tr><th>Port</th><th>Feed</th></tr>
     <tr><td><code>srt://127.0.0.1:30100</code></td><td>Mat B — TV feed</td></tr>
@@ -99,25 +108,24 @@
     <tr><td><code>srt://127.0.0.1:30102</code></td><td>Mat A — UWW+ feed</td></tr>
     <tr><td><code>srt://127.0.0.1:30103</code></td><td>Mat B — UWW+ feed</td></tr>
     <tr><td><code>srt://127.0.0.1:30104</code></td><td>Mat C — UWW+ feed</td></tr></table>
-    <h3>Destination modes</h3>
-    <p><strong>Caller (push)</strong> — you connect to their server. Use when the TV taker gives you an SRT listener URL.<br>
-    Example: <code>srt://livevideo.mediahub.evs.com:9001</code></p>
-    <p><strong>Listener (pull)</strong> — they connect to your server. Use when the TV taker wants to pull from you.<br>
-    Example: <code>srt://:30200</code> (listens on port 30200, taker connects to <code>srt://85.90.245.26:30200</code>)</p>
     <h3>Port ranges</h3>
     <table><tr><th>Range</th><th>Purpose</th></tr>
     <tr><td><code>30000-30099</code></td><td>Reserved — KiloLink SRT outputs</td></tr>
-    <tr><td><code>30100-30199</code></td><td>KiloLink → Nimble/Panel source ports</td></tr>
-    <tr><td><code>30200-30299</code></td><td>Available for listener-mode outputs (TV takers pull)</td></tr></table>
+    <tr><td><code>30100-30200</code></td><td>KiloLink → Panel source ports</td></tr>
+    <tr><td><code style="color:var(--red)">30201-30300</code></td><td style="color:var(--amber)">KiloLink TURN server — DO NOT USE</td></tr>
+    <tr><td><code>30400-30499</code></td><td>Available for listener-mode outputs (TV takers pull)</td></tr></table>
+    <div class="help-warn">⚠ Ports 30201-30300 are used by KiloLink's built-in TURN server (coturn). Do not assign listener relays to these ports — they will conflict silently.</div>
+    <h3>Stats display</h3>
+    <p>Counters (pkt loss, retrans, dropped, stats pts) show <strong>total session value</strong>. After clicking Reset stats, they show <code>total / since-reset</code>. Color is based on the since-reset value when a reset is active.</p>
     <h3>Quick links</h3>
     <div class="links">
-      <a href="http://85.90.245.26" target="_blank">KiloLink Server Pro</a>
+      <a href="http://85.90.245.26" target="_blank">KiloLink Main</a>
       <a href="https://studio.brightcove.com" target="_blank">Brightcove Studio</a>
       <a href="http://85.90.245.26:3000" target="_blank">Grafana monitoring</a>
       <a href="https://cloud.linode.com/linodes" target="_blank">Linode Cloud Manager</a>
     </div>
     <h3>Auto-reconnect</h3>
-    <p>If the source (KiloLink) or destination drops, the relay automatically retries every 3 seconds. The green/red dots next to URLs show connection state. You only need to manually stop a relay — it will keep reconnecting on its own.</p>
+    <p>If the source (KiloLink) or destination drops, the relay automatically retries every 3 seconds. The dots next to URLs show connection state: <span style="color:var(--green)">●</span> connected, <span style="color:var(--amber)">●</span> retrying, <span style="color:var(--text3)">●</span> no connection. You only need to manually stop a relay — it will keep reconnecting on its own.</p>
   </div>
   <div class="stats-bar">
     <div class="stat-card"><div class="label">Total relays</div><div class="value" id="totalRelays">0</div></div>
@@ -134,10 +142,9 @@
     <h2 id="modalTitle">Add relay</h2><input type="hidden" id="editId">
     <div class="fg"><label>Name</label><input id="fName" placeholder="e.g. MatB-TV-ESPN"></div>
     <div class="fg"><label>Group</label><select id="fGroup"><option value="TV takers">TV takers</option><option value="UWW+">UWW+</option><option value="Flo">Flo</option><option value="Test">Test</option></select></div>
-    <div class="fg"><label>Source SRT URL (from KiloLink)</label><input id="fSource" placeholder="srt://127.0.0.1:30100"></div>
-    <div class="fg"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30200 for listener"></div>
-    <div class="fr3">
-      <div class="fg"><label>Dest mode</label><select id="fDestMode"><option value="caller">Caller (push)</option><option value="listener">Listener (pull)</option></select></div>
+    <div class="fg"><label>Source SRT URL</label><input id="fSource" placeholder="srt://127.0.0.1:30100"><div class="mode-hint" id="srcModeHint">↑ has host → caller (connects to KiloLink)</div></div>
+    <div class="fg"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30400 for listener"><div class="mode-hint" id="dstModeHint">↑ enter URL to see auto-detected mode</div></div>
+    <div class="fr">
       <div class="fg"><label>Latency (ms)</label><input id="fLatency" type="number" value="1200"></div>
       <div class="fg"><label>Passphrase</label><input id="fPassphrase"></div>
     </div>
@@ -150,6 +157,8 @@ let currentGroup='all',relayData={},prevSig='',charts={},viewMode={},refreshInte
 const CL={br:{l:'#3b82f6',f:'rgba(59,130,246,0.1)'},rtt:{l:'#a78bfa',f:'rgba(167,139,250,0.1)'},loss:{l:'#f59e0b',f:'rgba(245,158,11,0.1)'},ret:{l:'#22c55e',f:'rgba(34,197,94,0.1)'}};
 function mkChart(cv,lb,cl,un){return new Chart(cv,{type:'line',data:{labels:[],datasets:[{label:lb,data:[],borderColor:cl.l,backgroundColor:cl.f,fill:true}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1a2236',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'#1e293b',borderWidth:1,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11},callbacks:{label:c=>`${lb}: ${c.parsed.y?.toFixed(2)} ${un}`}}},scales:{x:{display:true,ticks:{display:false},grid:{color:'rgba(30,41,59,0.5)',drawTicks:false},border:{display:false}},y:{display:true,ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},maxTicksLimit:4},grid:{color:'rgba(30,41,59,0.5)'},border:{display:false},beginAtZero:true}},elements:{point:{radius:0},line:{tension:0.3,borderWidth:1.5}}}})}
 function esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function detectModeFromUrl(url){if(!url)return'?';const m=url.match(/^srt:\/\/([^:/?]*)/);if(url.includes('mode=listener')||(m&&(!m[1]||m[1]==='')))return'listener';if(url.includes('mode=caller'))return'caller';if(m&&m[1])return'caller';return'?'}
+function modeLabel(mode){return mode==='listener'?'listener (opens port, waits)':mode==='caller'?'caller (connects to host)':'enter URL to see mode'}
 function sig(){const e=Object.entries(relayData);return(currentGroup==='all'?e:e.filter(([,r])=>r.group===currentGroup)).map(([id,r])=>`${id}:${r.running?1:0}`).join('|')}
 function setRefresh(ms){refreshInterval=ms;document.querySelectorAll('.rb').forEach(b=>b.classList.remove('active'));const m={'0':'Pause','3000':'3s','15000':'15s','60000':'1m'};document.querySelectorAll('.rb').forEach(b=>{if(b.textContent===m[ms])b.classList.add('active')});if(refreshTimer)clearInterval(refreshTimer);if(ms>0)refreshTimer=setInterval(poll,ms)}
 function toggleHelp(){document.getElementById('helpPanel').classList.toggle('show')}
@@ -161,22 +170,24 @@ function buildCards(){
   const filtered=currentGroup==='all'?entries:entries.filter(([,r])=>r.group===currentGroup);
   if(!filtered.length){document.getElementById('relayGrid').innerHTML='<div class="empty"><p>No relays configured</p><button class="btn btn-accent" onclick="showAddModal()">+ Add your first relay</button></div>';return}
   document.getElementById('relayGrid').innerHTML=filtered.map(([id,r])=>{
-    const on=r.running,dm=r.destMode||'caller',hasReset=!!r.resetPoint,isRV=viewMode[id]==='reset',hasStats=on&&r.stats;
+    const on=r.running,hasReset=!!r.resetPoint,isRV=viewMode[id]==='reset',hasStats=on&&r.stats;
     const retry=on&&r.stats&&r.stats.stale;
     const connecting=on&&(!r.stats||(r.stats&&!r.stats.stale&&!(r.stats.sendRate>0)));
     const healthy=on&&r.stats&&!r.stats.stale&&r.stats.sendRate>0;
     const nameDotClass=on?((retry||connecting)?'retrying':'on'):'off';
     const srcDotClass=on?(retry?'retrying':'on'):'off';
     const dstDotClass=on?(healthy?'on':(retry?'retrying':'off')):'off';
+    const srcMode=detectModeFromUrl(r.source);
+    const dstMode=detectModeFromUrl(r.destination);
     return`<div class="relay-card ${on?'running':'stopped'}" data-relay-id="${id}">
       <div class="rh"><div class="rn"><span class="dot ${nameDotClass}" id="name-dot-${id}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div>
       <div class="rb2">
-        <div class="re"><div class="ep"><span class="ep-dot ${srcDotClass}" id="src-dot-${id}"></span>${esc(r.source)}</div><div class="ea">&#8594;</div><div class="ep"><span class="ep-dot ${dstDotClass}" id="dst-dot-${id}"></span>${esc(r.destination)}<span class="mb">${dm}</span></div></div>
+        <div class="re"><div class="ep"><span class="ep-dot ${srcDotClass}" id="src-dot-${id}"></span>${esc(r.source)}<span class="mb">${srcMode}</span></div><div class="ea">&#8594;</div><div class="ep"><span class="ep-dot ${dstDotClass}" id="dst-dot-${id}"></span>${esc(r.destination)}<span class="mb">${dstMode}</span></div></div>
         <div class="rs">
           <div class="ms"><div class="ml">Bitrate out</div><div class="mv" style="color:var(--blue)" id="v-br-${id}">—</div></div>
           <div class="ms"><div class="ml">RTT</div><div class="mv" style="color:var(--purple)" id="v-rtt-${id}">—</div></div>
           <div class="ms"><div class="ml">Pkt loss</div><div class="mv" id="v-loss-${id}">—</div></div>
-          <div class="ms"><div class="ml">Retrans</div><div class="mv" style="color:var(--green)" id="v-ret-${id}">—</div></div>
+          <div class="ms"><div class="ml">Retrans</div><div class="mv" id="v-ret-${id}">—</div></div>
           <div class="ms"><div class="ml">Dropped</div><div class="mv" id="v-drop-${id}">—</div></div>
           <div class="ms"><div class="ml">Stats pts</div><div class="mv" id="v-pts-${id}">—</div></div>
         </div>
@@ -198,7 +209,7 @@ function buildCards(){
     if(l)charts[`loss-${id}`]=mkChart(l,'Pkt loss',CL.loss,'pkts');if(re)charts[`ret-${id}`]=mkChart(re,'Retrans',CL.ret,'pkts');}
 }
 function isRelayRetrying(r){return r.running&&r.stats&&r.stats.stale}
-function isRelayConnecting(r){return r.running&&(!r.stats||(!r.stats.stale&&!(r.stats.sendRate>0)))}
+function isRelayConnecting(r){return r.running&&(!r.stats||(r.stats&&!r.stats.stale&&!(r.stats.sendRate>0)))}
 function isRelayHealthy(r){return r.running&&r.stats&&!r.stats.stale&&r.stats.sendRate>0}
 function scrollToFirstRetrying(){const first=Object.entries(relayData).find(([,r])=>isRelayRetrying(r)||isRelayConnecting(r));if(!first)return;const card=document.querySelector(`[data-relay-id="${first[0]}"]`);if(card)card.scrollIntoView({behavior:'smooth',block:'center'})}
 function updateValues(){
@@ -209,7 +220,7 @@ function updateValues(){
   document.getElementById('stoppedRelays').textContent=entries.length-running;
   document.getElementById('retryingRelays').textContent=retrying;
   const retryCard=document.getElementById('retryingCard');
-  if(retryCard){retryCard.style.borderColor=retrying>0?'var(--amber)':'var(--border)';retryCard.style.display=retrying>0?'':''}
+  if(retryCard){retryCard.style.borderColor=retrying>0?'var(--amber)':'var(--border)'}
   document.getElementById('totalBitrate').textContent=entries.filter(([,r])=>r.running).reduce((s,[,r])=>s+(r.stats&&!r.stats.stale?r.stats.sendRate:0),0).toFixed(1);
   const groups=['all',...new Set(entries.map(([,r])=>r.group||'default'))];
   document.getElementById('groupTabs').innerHTML=groups.map(g=>`<div class="gt ${currentGroup===g?'active':''}" onclick="setGroup('${g}')">${g==='all'?'All':g} (${g==='all'?entries.length:entries.filter(([,r])=>r.group===g).length})</div>`).join('');
@@ -217,7 +228,6 @@ function updateValues(){
     const retry=isRelayRetrying(r);
     const connecting=isRelayConnecting(r);
     const healthy=isRelayHealthy(r);
-    // Status text
     const stEl=el(`st-${id}`);
     if(stEl){
       let stText=on?(retry?'Retrying...':(connecting?'Connecting...':'Running')):'Stopped';
@@ -226,21 +236,12 @@ function updateValues(){
       stEl.textContent=stText;
       stEl.style.color=retry?'var(--amber)':(connecting?'var(--text3)':'');
     }
-    // Name dot: green=healthy, amber=retrying/reconnecting, red=stopped
-    const nameDot=el(`name-dot-${id}`);
-    if(nameDot)nameDot.className='dot '+(on?(retry||connecting?'retrying':'on'):'off');
-    // Source dot: green if process is running (source is localhost KiloLink, always up if process starts)
-    // Only orange if process is in restart cycle (no stats at all = just started)
-    const srcDot=el(`src-dot-${id}`);
-    if(srcDot)srcDot.className='ep-dot '+(on?(s.stale?'retrying':'on'):'off');
-    // Dest dot: green=sending, orange=retrying, gray=stopped
-    const dstDot=el(`dst-dot-${id}`);
-    if(dstDot)dstDot.className='ep-dot '+(on?(healthy?'on':(retry?'retrying':'off')):'off');
+    const nameDot=el(`name-dot-${id}`);if(nameDot)nameDot.className='dot '+(on?((retry||connecting)?'retrying':'on'):'off');
+    const srcDot=el(`src-dot-${id}`);if(srcDot)srcDot.className='ep-dot '+(on?(retry?'retrying':'on'):'off');
+    const dstDot=el(`dst-dot-${id}`);if(dstDot)dstDot.className='ep-dot '+(on?(healthy?'on':(retry?'retrying':'off')):'off');
     if(!on){['v-br-','v-rtt-','v-loss-','v-ret-','v-drop-','v-pts-'].forEach(p=>{const e=el(p+id);if(e)e.innerHTML='—'});continue}
-    // Bitrate and RTT: show current value (already 0 when stale from server)
     const brEl=el(`v-br-${id}`);if(brEl)brEl.innerHTML=s.sendRate?s.sendRate.toFixed(1)+' <small>Mbps</small>':'—';
     const rttEl=el(`v-rtt-${id}`);if(rttEl)rttEl.innerHTML=s.rtt?s.rtt.toFixed(1)+' <small>ms</small>':'—';
-    // Cumulative counters: show "total / delta" when reset is active
     const sr=s.sinceReset;
     const fmtDual=(total,delta)=>sr!=null?`${total} <small>/ ${delta}</small>`:`${total}`;
     const lEl=el(`v-loss-${id}`);if(lEl){lEl.innerHTML=fmtDual(s.sndLoss??0,sr?sr.sndLoss:0);lEl.style.color=(sr?sr.sndLoss:s.sndLoss||0)>0?'var(--amber)':'var(--green)'}
@@ -265,11 +266,21 @@ async function stopAll(){await fetch('/api/relays/stop-all',{method:'POST'});pre
 async function deleteRelay(id){if(!confirm('Delete this relay?'))return;await fetch(`/api/relays/${id}`,{method:'DELETE'});prevSig='';setTimeout(poll,300)}
 async function resetStats(id){await fetch(`/api/relays/${id}/reset-stats`,{method:'POST'});viewMode[id]='reset';prevSig='';poll()}
 async function showFull(id){await fetch(`/api/relays/${id}/clear-reset`,{method:'POST'});viewMode[id]='full';prevSig='';poll()}
-function showAddModal(){document.getElementById('modalTitle').textContent='Add relay';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fSource').value='srt://127.0.0.1:30100';document.getElementById('fDest').value='';document.getElementById('fDestMode').value='caller';document.getElementById('fLatency').value='1200';document.getElementById('fPassphrase').value='';document.getElementById('fAutostart').checked=false;document.getElementById('fGroup').value='TV takers';document.getElementById('modalOverlay').classList.add('show')}
-function editRelay(id){const r=relayData[id];if(!r)return;document.getElementById('modalTitle').textContent='Edit relay';document.getElementById('editId').value=id;document.getElementById('fName').value=r.name;document.getElementById('fSource').value=r.source;document.getElementById('fDest').value=r.destination;document.getElementById('fDestMode').value=r.destMode||'caller';document.getElementById('fLatency').value=r.latency||'1200';document.getElementById('fPassphrase').value=r.passphrase||'';document.getElementById('fAutostart').checked=r.autostart||false;document.getElementById('fGroup').value=r.group||'TV takers';document.getElementById('modalOverlay').classList.add('show')}
+function updateModeHints(){
+  const src=document.getElementById('fSource').value;
+  const dst=document.getElementById('fDest').value;
+  const sh=document.getElementById('srcModeHint');
+  const dh=document.getElementById('dstModeHint');
+  if(sh)sh.textContent='↑ auto-detect: '+modeLabel(detectModeFromUrl(src));
+  if(dh)dh.textContent='↑ auto-detect: '+modeLabel(detectModeFromUrl(dst));
+}
+function showAddModal(){document.getElementById('modalTitle').textContent='Add relay';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fSource').value='srt://127.0.0.1:30100';document.getElementById('fDest').value='';document.getElementById('fLatency').value='1200';document.getElementById('fPassphrase').value='';document.getElementById('fAutostart').checked=false;document.getElementById('fGroup').value='TV takers';document.getElementById('modalOverlay').classList.add('show');updateModeHints()}
+function editRelay(id){const r=relayData[id];if(!r)return;document.getElementById('modalTitle').textContent='Edit relay';document.getElementById('editId').value=id;document.getElementById('fName').value=r.name;document.getElementById('fSource').value=r.source;document.getElementById('fDest').value=r.destination;document.getElementById('fLatency').value=r.latency||'1200';document.getElementById('fPassphrase').value=r.passphrase||'';document.getElementById('fAutostart').checked=r.autostart||false;document.getElementById('fGroup').value=r.group||'TV takers';document.getElementById('modalOverlay').classList.add('show');updateModeHints()}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show')}
-async function saveRelay(){const editId=document.getElementById('editId').value;const data={name:document.getElementById('fName').value,source:document.getElementById('fSource').value,destination:document.getElementById('fDest').value,destMode:document.getElementById('fDestMode').value,latency:document.getElementById('fLatency').value,passphrase:document.getElementById('fPassphrase').value,autostart:document.getElementById('fAutostart').checked,group:document.getElementById('fGroup').value};if(!data.name||!data.source||!data.destination){alert('Name, source and destination are required');return}if(editId){await fetch(`/api/relays/${editId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})}else{const r=await fetch('/api/relays',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const res=await r.json();if(res.error){alert(res.error);return}}closeModal();prevSig='';poll()}
+async function saveRelay(){const editId=document.getElementById('editId').value;const data={name:document.getElementById('fName').value,source:document.getElementById('fSource').value,destination:document.getElementById('fDest').value,latency:document.getElementById('fLatency').value,passphrase:document.getElementById('fPassphrase').value,autostart:document.getElementById('fAutostart').checked,group:document.getElementById('fGroup').value};if(!data.name||!data.source||!data.destination){alert('Name, source and destination are required');return}if(editId){await fetch(`/api/relays/${editId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})}else{const r=await fetch('/api/relays',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const res=await r.json();if(res.error){alert(res.error);return}}closeModal();prevSig='';poll()}
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
+document.getElementById('fSource').addEventListener('input',updateModeHints);
+document.getElementById('fDest').addEventListener('input',updateModeHints);
 poll();refreshTimer=setInterval(poll,refreshInterval);
 </script>
 </body>
