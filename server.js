@@ -6,9 +6,9 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-const CONFIG_FILE = '/opt/srt-stats/relays.json';
-const STATS_DIR = '/opt/srt-stats';
-const PORT = 8800;
+const CONFIG_FILE = process.env.CONFIG_FILE || '/opt/srt-stats/relays.json';
+const STATS_DIR = process.env.STATS_DIR || '/opt/srt-stats';
+const PORT = parseInt(process.env.PORT || '8800', 10);
 
 let relays = {};
 let processes = {};
@@ -176,6 +176,9 @@ app.get('/api/relays/:id/history', (req, res) => { res.json(getStatsHistory(req.
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Ensure stats directory exists
+if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
+
 loadConfig();
 setTimeout(() => { for (const [id, r] of Object.entries(relays)) { if (r.autostart) { console.log(`[${id}] Auto-starting...`); startRelay(id); } } }, 2000);
-app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v1.2 running on http://0.0.0.0:${PORT}`); });
+app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v1.3 running on http://0.0.0.0:${PORT}`); console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`); });
