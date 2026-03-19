@@ -1,0 +1,20 @@
+services:
+  srt-panel:
+    build: .
+    container_name: uww-srt-panel
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - srt-data:/data
+    environment:
+      - CONFIG_FILE=/data/relays.json
+      - STATS_DIR=/data
+      - PORT=8800
+    # network_mode: host exposes all ports directly on the host:
+    #   8800  — Web UI
+    #   30000-30300 — SRT relay ports (dynamic, managed by panel)
+    # No "ports:" section needed with host networking
+
+volumes:
+  srt-data:
+    driver: local
