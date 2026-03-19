@@ -162,10 +162,12 @@ function buildCards(){
   if(!filtered.length){document.getElementById('relayGrid').innerHTML='<div class="empty"><p>No relays configured</p><button class="btn btn-accent" onclick="showAddModal()">+ Add your first relay</button></div>';return}
   document.getElementById('relayGrid').innerHTML=filtered.map(([id,r])=>{
     const on=r.running,dm=r.destMode||'caller',hasReset=!!r.resetPoint,isRV=viewMode[id]==='reset',hasStats=on&&r.stats;
-    const isRetrying=on&&(!r.stats||r.stats.stale||!(r.stats.sendRate>0));
-    const nameDotClass=on?(isRetrying?'retrying':'on'):'off';
-    const srcDotClass=on?(isRetrying?'retrying':'on'):'off';
-    const dstDotClass=on?(isRetrying?'retrying':(hasStats&&r.stats.sendRate>0?'on':'off')):'off';
+    const retry=on&&r.stats&&r.stats.stale;
+    const connecting=on&&(!r.stats||(r.stats&&!r.stats.stale&&!(r.stats.sendRate>0)));
+    const healthy=on&&r.stats&&!r.stats.stale&&r.stats.sendRate>0;
+    const nameDotClass=on?((retry||connecting)?'retrying':'on'):'off';
+    const srcDotClass=on?(retry?'retrying':'on'):'off';
+    const dstDotClass=on?(healthy?'on':(retry?'retrying':'off')):'off';
     return`<div class="relay-card ${on?'running':'stopped'}" data-relay-id="${id}">
       <div class="rh"><div class="rn"><span class="dot ${nameDotClass}" id="name-dot-${id}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div>
       <div class="rb2">
@@ -195,11 +197,13 @@ function buildCards(){
     if(b)charts[`br-${id}`]=mkChart(b,'Bitrate',CL.br,'Mbps');if(t)charts[`rtt-${id}`]=mkChart(t,'RTT',CL.rtt,'ms');
     if(l)charts[`loss-${id}`]=mkChart(l,'Pkt loss',CL.loss,'pkts');if(re)charts[`ret-${id}`]=mkChart(re,'Retrans',CL.ret,'pkts');}
 }
-function isRelayRetrying(r){return r.running&&(!r.stats||r.stats.stale||!(r.stats.sendRate>0))}
-function scrollToFirstRetrying(){const first=Object.entries(relayData).find(([,r])=>isRelayRetrying(r));if(!first)return;const card=document.querySelector(`[data-relay-id="${first[0]}"]`);if(card)card.scrollIntoView({behavior:'smooth',block:'center'})}
+function isRelayRetrying(r){return r.running&&r.stats&&r.stats.stale}
+function isRelayConnecting(r){return r.running&&(!r.stats||(!r.stats.stale&&!(r.stats.sendRate>0)))}
+function isRelayHealthy(r){return r.running&&r.stats&&!r.stats.stale&&r.stats.sendRate>0}
+function scrollToFirstRetrying(){const first=Object.entries(relayData).find(([,r])=>isRelayRetrying(r)||isRelayConnecting(r));if(!first)return;const card=document.querySelector(`[data-relay-id="${first[0]}"]`);if(card)card.scrollIntoView({behavior:'smooth',block:'center'})}
 function updateValues(){
   const entries=Object.entries(relayData);const running=entries.filter(([,r])=>r.running).length;
-  const retrying=entries.filter(([,r])=>isRelayRetrying(r)).length;
+  const retrying=entries.filter(([,r])=>isRelayRetrying(r)||isRelayConnecting(r)).length;
   document.getElementById('totalRelays').textContent=entries.length;
   document.getElementById('runningRelays').textContent=running-retrying;
   document.getElementById('stoppedRelays').textContent=entries.length-running;
@@ -211,18 +215,38 @@ function updateValues(){
   document.getElementById('groupTabs').innerHTML=groups.map(g=>`<div class="gt ${currentGroup===g?'active':''}" onclick="setGroup('${g}')">${g==='all'?'All':g} (${g==='all'?entries.length:entries.filter(([,r])=>r.group===g).length})</div>`).join('');
   for(const[id,r]of entries){const s=r.stats||{},el=x=>document.getElementById(x),on=r.running;
     const retry=isRelayRetrying(r);
-    const stEl=el(`st-${id}`);if(stEl)stEl.textContent=on?(retry?'Retrying...':'Running')+(r.startedAt?' since '+new Date(r.startedAt).toLocaleTimeString():'')+(r.autostart?' · auto':''):'Stopped';
-    if(stEl&&retry)stEl.style.color='var(--amber)';else if(stEl)stEl.style.color='';
-    const nameDot=el(`name-dot-${id}`);if(nameDot)nameDot.className='dot '+(on?(retry?'retrying':'on'):'off');
-    const srcDot=el(`src-dot-${id}`);if(srcDot)srcDot.className='ep-dot '+(on?(retry?'retrying':'on'):'off');
-    const dstDot=el(`dst-dot-${id}`);if(dstDot)dstDot.className='ep-dot '+(on?(retry?'retrying':(s.sendRate>0?'on':'off')):'off');
+    const connecting=isRelayConnecting(r);
+    const healthy=isRelayHealthy(r);
+    // Status text
+    const stEl=el(`st-${id}`);
+    if(stEl){
+      let stText=on?(retry?'Retrying...':(connecting?'Connecting...':'Running')):'Stopped';
+      stText+=r.startedAt&&on?' since '+new Date(r.startedAt).toLocaleTimeString():'';
+      stText+=r.autostart?' · auto':'';
+      stEl.textContent=stText;
+      stEl.style.color=retry?'var(--amber)':(connecting?'var(--text3)':'');
+    }
+    // Name dot: green=healthy, amber=retrying/reconnecting, red=stopped
+    const nameDot=el(`name-dot-${id}`);
+    if(nameDot)nameDot.className='dot '+(on?(retry||connecting?'retrying':'on'):'off');
+    // Source dot: green if process is running (source is localhost KiloLink, always up if process starts)
+    // Only orange if process is in restart cycle (no stats at all = just started)
+    const srcDot=el(`src-dot-${id}`);
+    if(srcDot)srcDot.className='ep-dot '+(on?(s.stale?'retrying':'on'):'off');
+    // Dest dot: green=sending, orange=retrying, gray=stopped
+    const dstDot=el(`dst-dot-${id}`);
+    if(dstDot)dstDot.className='ep-dot '+(on?(healthy?'on':(retry?'retrying':'off')):'off');
     if(!on){['v-br-','v-rtt-','v-loss-','v-ret-','v-drop-','v-pts-'].forEach(p=>{const e=el(p+id);if(e)e.innerHTML='—'});continue}
+    // Bitrate and RTT: show current value (already 0 when stale from server)
     const brEl=el(`v-br-${id}`);if(brEl)brEl.innerHTML=s.sendRate?s.sendRate.toFixed(1)+' <small>Mbps</small>':'—';
     const rttEl=el(`v-rtt-${id}`);if(rttEl)rttEl.innerHTML=s.rtt?s.rtt.toFixed(1)+' <small>ms</small>':'—';
-    const lEl=el(`v-loss-${id}`);if(lEl){lEl.textContent=s.sndLoss??'—';lEl.style.color=(s.sndLoss||0)>0?'var(--amber)':'var(--green)'}
-    const reEl=el(`v-ret-${id}`);if(reEl)reEl.textContent=s.retrans??'—';
-    const dEl=el(`v-drop-${id}`);if(dEl){dEl.textContent=s.sndDrop??'—';dEl.style.color=(s.sndDrop||0)>0?'var(--red)':'var(--green)'}
-    const pEl=el(`v-pts-${id}`);if(pEl)pEl.textContent=s.statsLines??'—';}
+    // Cumulative counters: show "total / delta" when reset is active
+    const sr=s.sinceReset;
+    const fmtDual=(total,delta)=>sr!=null?`${total} <small>/ ${delta}</small>`:`${total}`;
+    const lEl=el(`v-loss-${id}`);if(lEl){lEl.innerHTML=fmtDual(s.sndLoss??0,sr?sr.sndLoss:0);lEl.style.color=(sr?sr.sndLoss:s.sndLoss||0)>0?'var(--amber)':'var(--green)'}
+    const reEl=el(`v-ret-${id}`);if(reEl){reEl.innerHTML=fmtDual(s.retrans??0,sr?sr.retrans:0);reEl.style.color=(sr?sr.retrans:s.retrans||0)>0?'var(--text)':'var(--green)'}
+    const dEl=el(`v-drop-${id}`);if(dEl){dEl.innerHTML=fmtDual(s.sndDrop??0,sr?sr.sndDrop:0);dEl.style.color=(sr?sr.sndDrop:s.sndDrop||0)>0?'var(--red)':'var(--green)'}
+    const pEl=el(`v-pts-${id}`);if(pEl)pEl.innerHTML=fmtDual(s.statsLines??0,sr?sr.statsLines:0);}
 }
 async function updateCharts(){
   for(const[id,r]of Object.entries(relayData)){if(!r.running)continue;const sr=viewMode[id]==='reset'&&r.resetPoint;

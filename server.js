@@ -29,8 +29,36 @@ function saveConfig() {
 
 function isSenderLine(fields) { return (parseFloat(fields[21]) || 0) > 0; }
 
+function getRelayFiles(id) {
+  return fs.readdirSync(STATS_DIR).filter(f => f.startsWith(id + '_') && f.endsWith('.csv')).sort();
+}
+
+function getCumulativeStats(id) {
+  const files = getRelayFiles(id);
+  if (files.length === 0) return null;
+  let totalLoss = 0, totalRetrans = 0, totalDrop = 0, totalLines = 0;
+  for (const f of files) {
+    const fp = path.join(STATS_DIR, f);
+    try {
+      const content = fs.readFileSync(fp, 'utf8').trim().split('\n');
+      if (content.length < 3) continue;
+      for (let i = content.length - 1; i >= 1; i--) {
+        const fields = content[i].split(',');
+        if (isSenderLine(fields)) {
+          totalLoss += parseInt(fields[12]) || 0;
+          totalRetrans += parseInt(fields[14]) || 0;
+          totalDrop += parseInt(fields[13]) || 0;
+          break;
+        }
+      }
+      totalLines += content.length - 1;
+    } catch(e) {}
+  }
+  return { sndLoss: totalLoss, retrans: totalRetrans, sndDrop: totalDrop, statsLines: totalLines };
+}
+
 function getLatestStats(id) {
-  const files = fs.readdirSync(STATS_DIR).filter(f => f.startsWith(id + '_') && f.endsWith('.csv')).sort();
+  const files = getRelayFiles(id);
   if (files.length === 0) return null;
   const latest = path.join(STATS_DIR, files[files.length - 1]);
   try {
@@ -40,48 +68,72 @@ function getLatestStats(id) {
     const f2 = content[content.length - 2].split(',');
     const sender = isSenderLine(f1) ? f1 : f2;
     const timestamp = f1[0] || '';
-    // Check if stats are stale (older than 10 seconds = connection likely down)
     let stale = false;
     try {
       const statsTime = new Date(timestamp).getTime();
-      const now = Date.now();
-      stale = (now - statsTime) > 10000;
+      stale = (Date.now() - statsTime) > 10000;
     } catch(e) { stale = false; }
+
+    const cumul = getCumulativeStats(id);
+    const rp = resetPoints[id];
+    const sinceReset = rp ? {
+      sndLoss: Math.max(0, (cumul ? cumul.sndLoss : 0) - (rp.sndLoss || 0)),
+      retrans: Math.max(0, (cumul ? cumul.retrans : 0) - (rp.retrans || 0)),
+      sndDrop: Math.max(0, (cumul ? cumul.sndDrop : 0) - (rp.sndDrop || 0)),
+      statsLines: Math.max(0, (cumul ? cumul.statsLines : 0) - (rp.statsLines || 0))
+    } : null;
+
     return {
-      timestamp,
+      timestamp, stale,
       rtt: stale ? 0 : (parseFloat(sender[7]) || 0),
       sendRate: stale ? 0 : (parseFloat(sender[21]) || 0),
       bandwidth: stale ? 0 : (parseFloat(sender[8]) || 0),
-      sndLoss: stale ? 0 : (parseInt(sender[12]) || 0),
-      retrans: stale ? 0 : (parseInt(sender[14]) || 0),
-      sndDrop: stale ? 0 : (parseInt(sender[13]) || 0),
+      sndLoss: cumul ? cumul.sndLoss : 0,
+      retrans: cumul ? cumul.retrans : 0,
+      sndDrop: cumul ? cumul.sndDrop : 0,
       totalSent: parseInt(sender[10]) || 0,
-      stale,
+      sinceReset,
       statsFile: files[files.length - 1],
-      statsLines: content.length - 1
+      statsLines: cumul ? cumul.statsLines : 0
     };
   } catch (e) { return null; }
 }
 
 function getStatsHistory(id, lines, sinceReset) {
-  const files = fs.readdirSync(STATS_DIR).filter(f => f.startsWith(id + '_') && f.endsWith('.csv')).sort();
+  const files = getRelayFiles(id);
   if (files.length === 0) return [];
-  const latest = path.join(STATS_DIR, files[files.length - 1]);
-  try {
-    const content = fs.readFileSync(latest, 'utf8').trim().split('\n');
-    let senderLines = content.slice(1).filter(line => isSenderLine(line.split(',')));
-    if (sinceReset && resetPoints[id]) {
-      senderLines = senderLines.filter(line => (line.split(',')[0] || '') >= resetPoints[id]);
-    }
-    // Take last 12000 sender lines (~20 min at ~10 lines/sec) and downsample to 'lines' points
-    const raw = senderLines.slice(-12000);
-    const step = Math.max(1, Math.floor(raw.length / lines));
-    const sampled = raw.filter((_, i) => i % step === 0).slice(-lines);
-    return sampled.map(line => {
-      const f = line.split(',');
-      return { time: f[0]||'', rtt: parseFloat(f[7])||0, sendRate: parseFloat(f[21])||0, sndLoss: parseInt(f[12])||0, retrans: parseInt(f[14])||0, sndDrop: parseInt(f[13])||0 };
-    });
-  } catch (e) { return []; }
+
+  let allSenderLines = [];
+  const recentFiles = files.slice(-5);
+  for (const f of recentFiles) {
+    const fp = path.join(STATS_DIR, f);
+    try {
+      const content = fs.readFileSync(fp, 'utf8').trim().split('\n');
+      const senders = content.slice(1).filter(line => isSenderLine(line.split(',')));
+      if (allSenderLines.length > 0 && senders.length > 0) {
+        const lastTime = allSenderLines[allSenderLines.length - 1].split(',')[0] || '';
+        const nextTime = senders[0].split(',')[0] || '';
+        if (lastTime && nextTime) {
+          const zeroLine = (t) => `${t},0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0`;
+          allSenderLines.push(zeroLine(lastTime));
+          allSenderLines.push(zeroLine(nextTime));
+        }
+      }
+      allSenderLines = allSenderLines.concat(senders);
+    } catch(e) {}
+  }
+
+  if (sinceReset && resetPoints[id]) {
+    allSenderLines = allSenderLines.filter(line => (line.split(',')[0] || '') >= resetPoints[id].time);
+  }
+
+  const raw = allSenderLines.slice(-12000);
+  const step = Math.max(1, Math.floor(raw.length / lines));
+  const sampled = raw.filter((_, i) => i % step === 0).slice(-lines);
+  return sampled.map(line => {
+    const f = line.split(',');
+    return { time: f[0]||'', rtt: parseFloat(f[7])||0, sendRate: parseFloat(f[21])||0, sndLoss: parseInt(f[12])||0, retrans: parseInt(f[14])||0, sndDrop: parseInt(f[13])||0 };
+  });
 }
 
 function startRelay(id) {
@@ -111,7 +163,6 @@ function startRelay(id) {
   proc.on('exit', (code) => {
     console.log(`[${id}] Exited with code ${code}`);
     if (processes[id]) { processes[id].running = false; processes[id].exitCode = code; processes[id].stoppedAt = new Date().toISOString(); }
-    // Always auto-restart unless manually stopped
     if (relays[id] && processes[id] && !processes[id].manuallyStopped) {
       console.log(`[${id}] Auto-restarting in 3s (source or dest dropped)...`);
       setTimeout(() => { if (relays[id] && processes[id] && !processes[id].manuallyStopped) startRelay(id); }, 3000);
@@ -136,7 +187,7 @@ app.get('/api/relays', (req, res) => {
   for (const [id, r] of Object.entries(relays)) {
     const p = processes[id];
     const isRunning = p ? p.running : false;
-    result[id] = { ...r, running: isRunning, pid: p ? p.pid : null, startedAt: p ? p.startedAt : null, stoppedAt: p ? p.stoppedAt : null, resetPoint: resetPoints[id] || null, stats: isRunning ? getLatestStats(id) : null };
+    result[id] = { ...r, running: isRunning, pid: p ? p.pid : null, startedAt: p ? p.startedAt : null, stoppedAt: p ? p.stoppedAt : null, resetPoint: resetPoints[id] ? resetPoints[id].time : null, stats: isRunning ? getLatestStats(id) : null };
   }
   res.json(result);
 });
@@ -167,7 +218,19 @@ app.delete('/api/relays/:id', (req, res) => {
 
 app.post('/api/relays/:id/start', (req, res) => { res.json(startRelay(req.params.id)); });
 app.post('/api/relays/:id/stop', (req, res) => { res.json(stopRelay(req.params.id)); });
-app.post('/api/relays/:id/reset-stats', (req, res) => { resetPoints[req.params.id] = new Date().toISOString(); res.json({ ok: true, resetPoint: resetPoints[req.params.id] }); });
+
+app.post('/api/relays/:id/reset-stats', (req, res) => {
+  const cumul = getCumulativeStats(req.params.id);
+  resetPoints[req.params.id] = {
+    time: new Date().toISOString(),
+    sndLoss: cumul ? cumul.sndLoss : 0,
+    retrans: cumul ? cumul.retrans : 0,
+    sndDrop: cumul ? cumul.sndDrop : 0,
+    statsLines: cumul ? cumul.statsLines : 0
+  };
+  res.json({ ok: true, resetPoint: resetPoints[req.params.id].time });
+});
+
 app.post('/api/relays/:id/clear-reset', (req, res) => { delete resetPoints[req.params.id]; res.json({ ok: true }); });
 app.post('/api/relays/start-all', (req, res) => { const r = {}; for (const id of Object.keys(relays)) { if (!processes[id] || !processes[id].running) r[id] = startRelay(id); } res.json(r); });
 app.post('/api/relays/stop-all', (req, res) => { const r = {}; for (const id of Object.keys(relays)) { if (processes[id] && processes[id].running) r[id] = stopRelay(id); } res.json(r); });
@@ -176,9 +239,8 @@ app.get('/api/relays/:id/history', (req, res) => { res.json(getStatsHistory(req.
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Ensure stats directory exists
 if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
 loadConfig();
 setTimeout(() => { for (const [id, r] of Object.entries(relays)) { if (r.autostart) { console.log(`[${id}] Auto-starting...`); startRelay(id); } } }, 2000);
-app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v1.3 running on http://0.0.0.0:${PORT}`); console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`); });
+app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v1.4 running on http://0.0.0.0:${PORT}`); console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`); });
