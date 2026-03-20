@@ -29,6 +29,8 @@
   .btn{padding:8px 16px;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
   .btn:hover{background:var(--bg4)}.btn-green{background:var(--green-bg);border-color:#166534;color:var(--green)}.btn-red{background:var(--red-bg);border-color:#7f1d1d;color:var(--red)}.btn-accent{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn-sm{padding:4px 10px;font-size:12px}.btn-xs{padding:2px 8px;font-size:10px;border-radius:4px}
+  .icon-btn{padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);cursor:pointer;font-size:14px;transition:all .15s;line-height:1}
+  .icon-btn:hover{color:var(--text);background:var(--bg4)}
   .relay-grid{display:grid;gap:12px}
   .relay-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden}
   .relay-card.running{border-color:#166534}.relay-card.stopped{border-color:#7f1d1d}
@@ -64,8 +66,6 @@
   .fc{display:flex;align-items:center;gap:8px}.fc input{width:auto}
   .fa{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
   .empty{text-align:center;padding:60px 20px;color:var(--text3)}.empty p{margin-bottom:16px}
-  .help-toggle{padding:4px 10px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text3);cursor:pointer;font-size:12px;transition:all .15s}
-  .help-toggle:hover{color:var(--text);background:var(--bg4)}
   .help-panel{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:24px;display:none;font-size:13px;line-height:1.7;color:var(--text2)}
   .help-panel.show{display:block}
   .help-panel h3{font-size:14px;color:var(--text);margin:16px 0 6px;font-weight:700}.help-panel h3:first-child{margin-top:0}
@@ -82,10 +82,26 @@
   .log-content table{width:100%;border-collapse:collapse}.log-content td,.log-content th{padding:2px 8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}.log-content th{color:var(--text3);font-size:10px}
   .log-line{color:var(--text2)}.log-line.stderr{color:var(--amber)}.log-line.system{color:var(--accent)}
   .log-actions{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .auth-overlay{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200}
+  .auth-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:40px;width:360px;text-align:center}
+  .auth-box h2{font-size:20px;margin-bottom:8px}.auth-box p{color:var(--text3);font-size:13px;margin-bottom:20px}
+  .auth-box input{width:100%;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:16px;font-family:'JetBrains Mono',monospace;text-align:center;margin-bottom:12px}
+  .auth-box input:focus{outline:none;border-color:var(--accent)}
+  .auth-box .auth-err{color:var(--red);font-size:12px;margin-bottom:8px;min-height:18px}
   @media(max-width:768px){.re{grid-template-columns:1fr}.ea{transform:rotate(90deg)}.fr,.cr{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<!-- Auth overlay -->
+<div class="auth-overlay" id="authOverlay" style="display:none">
+  <div class="auth-box">
+    <h2><span style="color:var(--accent)">UWW</span> SRT Panel</h2>
+    <p>Enter password to access the relay panel</p>
+    <input type="password" id="authPassword" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="auth-err" id="authError"></div>
+    <button class="btn btn-accent" style="width:100%;justify-content:center" onclick="doLogin()">Login</button>
+  </div>
+</div>
 <header>
   <h1><span>UWW</span> SRT Relay Panel</h1>
   <div class="header-actions">
@@ -98,7 +114,8 @@
     <button class="btn btn-green" onclick="confirmStartAll()">Start all</button>
     <button class="btn btn-red" onclick="confirmStopAll()">Stop all</button>
     <button class="btn btn-accent" onclick="showAddModal()">+ Add relay</button>
-    <button class="help-toggle" onclick="toggleHelp()">? Help</button>
+    <button class="icon-btn" onclick="toggleHelp()" title="Info">ℹ️</button>
+    <button class="icon-btn" onclick="showAuthMenu()" title="Auth" id="authBtn">🔒</button>
   </div>
 </header>
 <div class="container">
@@ -126,9 +143,9 @@
     <tr><td><code>30400-30499</code></td><td>Available for listener-mode outputs</td></tr></table>
     <div class="help-warn">⚠ Ports 30201-30300 are used by KiloLink's built-in TURN server (coturn). Do not assign listener relays to these ports.</div>
     <h3>Stats display</h3>
-    <p>Counters show <code style="color:var(--amber)">recent</code> <code style="color:var(--text3)">/ total</code>. Recent = last 20 min or since reset. Charts show per-interval values (not cumulative) with visible time gaps when connection drops.</p>
-    <h3>Sessions</h3>
-    <p>Check "New session" next to Start to begin fresh (ignores old logs). Auto-activates if last data is older than 24 hours. Use "Reset stats" during a live session to zero the recent counter without losing session data.</p>
+    <p>Counters show <code style="color:var(--amber)">recent</code> <code style="color:var(--text3)">/ total</code>. Recent = since last reset or session start. Charts show per-interval deltas (spikes = problems) with visible gaps when connection drops.</p>
+    <h3>Sessions &amp; Reset</h3>
+    <p>Check <strong>New session</strong> next to Start to begin fresh (ignores old logs, resets all counters). Auto-activates if last data is older than 24h. Use <strong>Reset stats</strong> during a live session to zero the recent counter. Use <strong>Last 20 min</strong> to clear the reset and show rolling window.</p>
     <h3>Quick links</h3>
     <div class="links">
       <a href="http://85.90.245.26" target="_blank">KiloLink Main</a>
@@ -148,43 +165,39 @@
   <div class="relay-grid" id="relayGrid"></div>
 </div>
 <!-- Add/Edit modal -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <h2 id="modalTitle">Add relay</h2><input type="hidden" id="editId">
-    <div class="fg"><label>Name</label><input id="fName" placeholder="e.g. MatB-TV-ESPN"></div>
-    <div class="fg"><label>Group</label><select id="fGroup"><option value="TV takers">TV takers</option><option value="UWW+">UWW+</option><option value="Flo">Flo</option><option value="Test">Test</option></select></div>
-    <div class="fg"><label>Source SRT URL</label><input id="fSource" placeholder="srt://127.0.0.1:30100" oninput="updateModeHints()"><div class="mode-hint" id="srcModeHint"></div></div>
-    <div class="fg"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30400" oninput="updateModeHints()"><div class="mode-hint" id="dstModeHint"></div></div>
-    <div class="fr">
-      <div class="fg"><label>Latency (ms)</label><input id="fLatency" type="number" value="1200"></div>
-      <div class="fg"><label>Passphrase</label><input id="fPassphrase"></div>
-    </div>
-    <div class="fg"><div class="fc"><input type="checkbox" id="fAutostart"><label for="fAutostart" style="text-transform:none;color:var(--text);font-size:14px">Auto-start on server boot</label></div></div>
-    <div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveRelay()">Save</button></div>
+<div class="modal-overlay" id="modalOverlay"><div class="modal">
+  <h2 id="modalTitle">Add relay</h2><input type="hidden" id="editId">
+  <div class="fg"><label>Name</label><input id="fName" placeholder="e.g. MatB-TV-ESPN"></div>
+  <div class="fg"><label>Group</label><select id="fGroup"><option value="TV takers">TV takers</option><option value="UWW+">UWW+</option><option value="Flo">Flo</option><option value="Test">Test</option></select></div>
+  <div class="fg"><label>Source SRT URL</label><input id="fSource" placeholder="srt://127.0.0.1:30100" oninput="updateModeHints()"><div class="mode-hint" id="srcModeHint"></div></div>
+  <div class="fg"><label>Destination SRT URL</label><input id="fDest" placeholder="srt://host:port or srt://:30400" oninput="updateModeHints()"><div class="mode-hint" id="dstModeHint"></div></div>
+  <div class="fr">
+    <div class="fg"><label>Latency (ms)</label><input id="fLatency" type="number" value="1200"></div>
+    <div class="fg"><label>Passphrase</label><input id="fPassphrase"></div>
   </div>
-</div>
+  <div class="fg"><div class="fc"><input type="checkbox" id="fAutostart"><label for="fAutostart" style="text-transform:none;color:var(--text);font-size:14px">Auto-start on server boot</label></div></div>
+  <div class="fa"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-accent" onclick="saveRelay()">Save</button></div>
+</div></div>
 <!-- Log viewer modal -->
-<div class="modal-overlay" id="logOverlay">
-  <div class="modal wide">
-    <h2 id="logTitle">Logs</h2>
-    <div class="log-tabs">
-      <div class="log-tab active" onclick="switchLogTab('stats')">Stats log</div>
-      <div class="log-tab" onclick="switchLogTab('process')">Process log</div>
-    </div>
-    <div id="logStatsContent" class="log-content"></div>
-    <div id="logProcessContent" class="log-content" style="display:none"></div>
-    <div class="log-actions">
-      <select id="logLines" onchange="refreshLogs()"><option value="20">Last 20 lines</option><option value="100">Last 100 lines</option><option value="500">Last 500 lines</option></select>
-      <button class="btn btn-sm" onclick="copyLogs()">Copy to clipboard</button>
-      <button class="btn btn-sm" onclick="refreshLogs()">Refresh</button>
-      <div style="margin-left:auto"><button class="btn btn-sm" onclick="closeLogModal()">Close</button></div>
-    </div>
+<div class="modal-overlay" id="logOverlay"><div class="modal wide">
+  <h2 id="logTitle">Logs</h2>
+  <div class="log-tabs">
+    <div class="log-tab active" onclick="switchLogTab('stats')">Stats log</div>
+    <div class="log-tab" onclick="switchLogTab('process')">Process log</div>
   </div>
-</div>
+  <div id="logStatsContent" class="log-content"></div>
+  <div id="logProcessContent" class="log-content" style="display:none"></div>
+  <div class="log-actions">
+    <select id="logLines" onchange="refreshLogs()"><option value="20">Last 20</option><option value="100">Last 100</option><option value="500">Last 500</option></select>
+    <button class="btn btn-sm" onclick="copyLogs()">📋 Copy</button>
+    <button class="btn btn-sm" onclick="refreshLogs()">↻ Refresh</button>
+    <div style="margin-left:auto"><button class="btn btn-sm" onclick="closeLogModal()">Close</button></div>
+  </div>
+</div></div>
 <script>
-let currentGroup='all',relayData={},prevSig='',charts={},viewMode={},refreshInterval=3000,refreshTimer=null,currentLogId=null,currentLogTab='stats';
+let currentGroup='all',relayData={},prevSig='',charts={},viewMode={},refreshInterval=3000,refreshTimer=null,currentLogId=null,currentLogTab='stats',isAuthed=false;
 const CL={br:{l:'#3b82f6',f:'rgba(59,130,246,0.1)'},rtt:{l:'#a78bfa',f:'rgba(167,139,250,0.1)'},loss:{l:'#f59e0b',f:'rgba(245,158,11,0.1)'},ret:{l:'#22c55e',f:'rgba(34,197,94,0.1)'}};
-function mkChart(cv,lb,cl,un){return new Chart(cv,{type:'line',data:{labels:[],datasets:[{label:lb,data:[],borderColor:cl.l,backgroundColor:cl.f,fill:true,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1a2236',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'#1e293b',borderWidth:1,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11},callbacks:{label:c=>{const v=c.parsed.y;return v===null?'gap':`${lb}: ${v.toFixed(2)} ${un}`}}}},scales:{x:{display:true,ticks:{display:false},grid:{color:'rgba(30,41,59,0.5)',drawTicks:false},border:{display:false}},y:{display:true,ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},maxTicksLimit:4},grid:{color:'rgba(30,41,59,0.5)'},border:{display:false},beginAtZero:true}},elements:{point:{radius:0},line:{tension:0.3,borderWidth:1.5}}}})}
+function mkChart(cv,lb,cl,un){return new Chart(cv,{type:'line',data:{labels:[],datasets:[{label:lb,data:[],borderColor:cl.l,backgroundColor:cl.f,fill:true,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:'#1a2236',titleColor:'#e2e8f0',bodyColor:'#94a3b8',borderColor:'#1e293b',borderWidth:1,titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11},callbacks:{label:c=>{const v=c.parsed.y;return v===null?'—':`${lb}: ${v.toFixed(2)} ${un}`}}}},scales:{x:{display:true,ticks:{display:false},grid:{color:'rgba(30,41,59,0.5)',drawTicks:false},border:{display:false}},y:{display:true,ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:9},maxTicksLimit:4},grid:{color:'rgba(30,41,59,0.5)'},border:{display:false},beginAtZero:true}},elements:{point:{radius:0},line:{tension:0.3,borderWidth:1.5}}}})}
 function esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function detectModeFromUrl(url){if(!url)return'?';const m=url.match(/^srt:\/\/([^:/?]*)/);if(url.includes('mode=listener')||(m&&(!m[1]||m[1]==='')))return'listener';if(url.includes('mode=caller'))return'caller';if(m&&m[1])return'caller';return'?'}
 function modeHint(mode){return mode==='listener'?'→ listener (opens port, waits)':mode==='caller'?'→ caller (connects to host)':'enter URL to see mode'}
@@ -193,6 +206,32 @@ function setRefresh(ms){refreshInterval=ms;document.querySelectorAll('.rb').forE
 function toggleHelp(){document.getElementById('helpPanel').classList.toggle('show')}
 function confirmStartAll(){if(confirm('Start ALL relays?'))startAll()}
 function confirmStopAll(){if(confirm('Stop ALL relays?'))stopAll()}
+
+// --- Auth ---
+async function checkAuth(){
+  try{const r=await fetch('/api/auth/status');const d=await r.json();
+    if(!d.required){isAuthed=true;document.getElementById('authOverlay').style.display='none';document.getElementById('authBtn').textContent='🔓';return}
+    if(d.authenticated){isAuthed=true;document.getElementById('authOverlay').style.display='none';document.getElementById('authBtn').textContent='🔓';return}
+    isAuthed=false;document.getElementById('authOverlay').style.display='flex';document.getElementById('authBtn').textContent='🔒';
+    document.getElementById('authPassword').focus();
+  }catch(e){isAuthed=true;document.getElementById('authOverlay').style.display='none'}
+}
+async function doLogin(){
+  const pw=document.getElementById('authPassword').value;
+  try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})});
+    const d=await r.json();
+    if(d.ok){isAuthed=true;document.getElementById('authOverlay').style.display='none';document.getElementById('authBtn').textContent='🔓';document.getElementById('authError').textContent='';poll()}
+    else{document.getElementById('authError').textContent=d.error||'Wrong password'}
+  }catch(e){document.getElementById('authError').textContent='Connection error'}
+}
+async function doLogout(){
+  await fetch('/api/auth/logout',{method:'POST'});
+  isAuthed=false;document.getElementById('authOverlay').style.display='flex';document.getElementById('authBtn').textContent='🔒';
+  document.getElementById('authPassword').value='';document.getElementById('authPassword').focus();
+}
+function showAuthMenu(){if(isAuthed){if(confirm('Logout?'))doLogout()}else{document.getElementById('authOverlay').style.display='flex';document.getElementById('authPassword').focus()}}
+
+// --- Build cards ---
 function buildCards(){
   for(const k of Object.keys(charts)){charts[k].destroy()}charts={};
   const entries=Object.entries(relayData);
@@ -204,7 +243,6 @@ function buildCards(){
     const connecting=on&&(!r.stats||(r.stats&&!r.stats.stale&&!(r.stats.sendRate>0)));
     const healthy=on&&r.stats&&!r.stats.stale&&r.stats.sendRate>0;
     const nameDot=on?((retry||connecting)?'retrying':'on'):'off';
-    const srcDot=on?(retry?'retrying':'on'):'off';
     const dstDot=on?(healthy?'on':(retry?'retrying':'off')):'off';
     const srcMode=detectModeFromUrl(r.source);
     const dstMode=detectModeFromUrl(r.destination);
@@ -212,7 +250,7 @@ function buildCards(){
     return`<div class="relay-card ${on?'running':'stopped'}" data-relay-id="${id}">
       <div class="rh"><div class="rn"><span class="dot ${nameDot}" id="name-dot-${id}"></span>${esc(r.name)}<span style="font-size:11px;color:var(--text3);font-weight:400">${esc(r.group||'')}</span></div><div class="rh-right">${sessInfo?`<span class="session-info">${sessInfo}</span>`:''}<div style="font-size:11px;color:var(--text3)" class="mono" id="st-${id}"></div></div></div>
       <div class="rb2">
-        <div class="re"><div class="ep"><span class="ep-dot ${srcDot}" id="src-dot-${id}"></span>${esc(r.source)}<span class="mb">${srcMode}</span></div><div class="ea">&#8594;</div><div class="ep"><span class="ep-dot ${dstDot}" id="dst-dot-${id}"></span>${esc(r.destination)}<span class="mb">${dstMode}</span></div></div>
+        <div class="re"><div class="ep">${esc(r.source)}<span class="mb">${srcMode}</span></div><div class="ea">&#8594;</div><div class="ep"><span class="ep-dot ${dstDot}" id="dst-dot-${id}"></span>${esc(r.destination)}<span class="mb">${dstMode}</span></div></div>
         <div class="rs">
           <div class="ms"><div class="ml">Bitrate out</div><div class="mv" style="color:var(--blue)" id="v-br-${id}">—</div></div>
           <div class="ms"><div class="ml">RTT</div><div class="mv" style="color:var(--purple)" id="v-rtt-${id}">—</div></div>
@@ -258,37 +296,38 @@ function updateValues(){
     const stEl=el(`st-${id}`);
     if(stEl){let t=on?(retry?'Retrying...':(connecting?'Connecting...':'Running')):'Stopped';t+=r.startedAt&&on?' since '+new Date(r.startedAt).toLocaleTimeString():'';t+=r.autostart?' · auto':'';stEl.textContent=t;stEl.style.color=retry?'var(--amber)':(connecting?'var(--text3)':'');}
     const nd=el(`name-dot-${id}`);if(nd)nd.className='dot '+(on?((retry||connecting)?'retrying':'on'):'off');
-    const sd=el(`src-dot-${id}`);if(sd)sd.className='ep-dot '+(on?(retry?'retrying':'on'):'off');
     const dd=el(`dst-dot-${id}`);if(dd)dd.className='ep-dot '+(on?(healthy?'on':(retry?'retrying':'off')):'off');
     if(!on){['v-br-','v-rtt-','v-loss-','v-ret-','v-drop-','v-pts-'].forEach(p=>{const e=el(p+id);if(e)e.innerHTML='—'});continue}
     const brEl=el(`v-br-${id}`);if(brEl)brEl.innerHTML=s.sendRate?s.sendRate.toFixed(1)+' <small>Mbps</small>':'—';
     const rttEl=el(`v-rtt-${id}`);if(rttEl)rttEl.innerHTML=s.rtt?s.rtt.toFixed(1)+' <small>ms</small>':'—';
-    // recent / total format: recent colored, total gray
-    const sr=s.sinceReset;
-    const recent=(sr!=null);
-    const fmtDual=(recentVal,totalVal)=>`<span>${recentVal}</span> <small>/ ${totalVal}</small>`;
-    const rLoss=recent?sr.sndLoss:(s.sndLoss||0);const tLoss=s.sndLoss||0;
-    const rRet=recent?sr.retrans:(s.retrans||0);const tRet=s.retrans||0;
-    const rDrop=recent?sr.sndDrop:(s.sndDrop||0);const tDrop=s.sndDrop||0;
-    const rPts=recent?sr.statsLines:(s.statsLines||0);const tPts=s.statsLines||0;
-    const lEl=el(`v-loss-${id}`);if(lEl){lEl.innerHTML=fmtDual(rLoss,tLoss);lEl.style.color=rLoss>0?'var(--amber)':'var(--green)'}
-    const reEl=el(`v-ret-${id}`);if(reEl){reEl.innerHTML=fmtDual(rRet,tRet);reEl.style.color=rRet>0?'var(--text)':'var(--green)'}
-    const dEl=el(`v-drop-${id}`);if(dEl){dEl.innerHTML=fmtDual(rDrop,tDrop);dEl.style.color=rDrop>0?'var(--red)':'var(--green)'}
-    const pEl=el(`v-pts-${id}`);if(pEl)pEl.innerHTML=fmtDual(rPts,tPts);}
+    const sr=s.sinceReset;const recent=(sr!=null);
+    const fmtDual=(rv,tv)=>`<span>${rv}</span> <small>/ ${tv}</small>`;
+    const rL=recent?sr.sndLoss:(s.sndLoss||0),tL=s.sndLoss||0;
+    const rR=recent?sr.retrans:(s.retrans||0),tR=s.retrans||0;
+    const rD=recent?sr.sndDrop:(s.sndDrop||0),tD=s.sndDrop||0;
+    const rP=recent?sr.statsLines:(s.statsLines||0),tP=s.statsLines||0;
+    const lEl=el(`v-loss-${id}`);if(lEl){lEl.innerHTML=fmtDual(rL,tL);lEl.style.color=rL>0?'var(--amber)':'var(--green)'}
+    const reEl=el(`v-ret-${id}`);if(reEl){reEl.innerHTML=fmtDual(rR,tR);reEl.style.color=rR>0?'var(--text)':'var(--green)'}
+    const dEl=el(`v-drop-${id}`);if(dEl){dEl.innerHTML=fmtDual(rD,tD);dEl.style.color=rD>0?'var(--red)':'var(--green)'}
+    const pEl=el(`v-pts-${id}`);if(pEl)pEl.innerHTML=fmtDual(rP,tP);}
 }
 async function updateCharts(){
   for(const[id,r]of Object.entries(relayData)){if(!r.running)continue;
     try{const resp=await fetch(`/api/relays/${id}/history?lines=240`);const h=await resp.json();if(h.length<2)continue;
       const labels=h.map(d=>d.time?d.time.split('T')[1]?.split('+')[0]?.slice(0,8)||'':'');
       const upd=(k,v)=>{if(!charts[k])return;charts[k].data.labels=labels;charts[k].data.datasets[0].data=v;charts[k].update('none')};
-      // Use null for gap points so Chart.js breaks the line (spanGaps:false)
       upd(`br-${id}`,h.map(d=>d.gap?null:d.sendRate));
       upd(`rtt-${id}`,h.map(d=>d.gap?null:d.rtt));
       upd(`loss-${id}`,h.map(d=>d.gap?null:d.dLoss));
       upd(`ret-${id}`,h.map(d=>d.gap?null:d.dRetrans));
-    }catch(e){}}
+    }catch(e){if(e.message&&e.message.includes('401'))checkAuth()}}
 }
-async function poll(){try{const r=await fetch('/api/relays');relayData=await r.json();const s=sig();if(s!==prevSig){prevSig=s;buildCards()}updateValues();await updateCharts()}catch(e){console.error(e)}}
+async function poll(){
+  try{const r=await fetch('/api/relays');
+    if(r.status===401){checkAuth();return}
+    relayData=await r.json();const s=sig();if(s!==prevSig){prevSig=s;buildCards()}updateValues();await updateCharts()
+  }catch(e){console.error(e)}
+}
 function setGroup(g){currentGroup=g;prevSig='';poll()}
 async function startRelay(id){const ns=document.getElementById(`ns-${id}`);const newSession=ns?ns.checked:false;await fetch(`/api/relays/${id}/start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({newSession})});prevSig='';setTimeout(poll,600)}
 async function stopRelay(id){await fetch(`/api/relays/${id}/stop`,{method:'POST'});prevSig='';setTimeout(poll,600)}
@@ -306,20 +345,21 @@ function showAddModal(){document.getElementById('modalTitle').textContent='Add r
 function editRelay(id){const r=relayData[id];if(!r)return;document.getElementById('modalTitle').textContent='Edit relay';document.getElementById('editId').value=id;document.getElementById('fName').value=r.name;document.getElementById('fSource').value=r.source;document.getElementById('fDest').value=r.destination;document.getElementById('fLatency').value=r.latency||'1200';document.getElementById('fPassphrase').value=r.passphrase||'';document.getElementById('fAutostart').checked=r.autostart||false;document.getElementById('fGroup').value=r.group||'TV takers';document.getElementById('modalOverlay').classList.add('show');updateModeHints()}
 function closeModal(){document.getElementById('modalOverlay').classList.remove('show')}
 async function saveRelay(){const editId=document.getElementById('editId').value;const data={name:document.getElementById('fName').value,source:document.getElementById('fSource').value,destination:document.getElementById('fDest').value,latency:document.getElementById('fLatency').value,passphrase:document.getElementById('fPassphrase').value,autostart:document.getElementById('fAutostart').checked,group:document.getElementById('fGroup').value};if(!data.name||!data.source||!data.destination){alert('Name, source and destination are required');return}if(editId){await fetch(`/api/relays/${editId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})}else{const r=await fetch('/api/relays',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const res=await r.json();if(res.error){alert(res.error);return}}closeModal();prevSig='';poll()}
-// Log viewer
-async function showLogs(id){currentLogId=id;currentLogTab='stats';document.getElementById('logTitle').textContent='Logs: '+(relayData[id]?.name||id);document.getElementById('logOverlay').classList.add('show');document.querySelectorAll('.log-tab').forEach((t,i)=>t.classList.toggle('active',i===0));refreshLogs()}
+// --- Log viewer ---
+async function showLogs(id){currentLogId=id;currentLogTab='stats';document.getElementById('logTitle').textContent='Logs: '+(relayData[id]?.name||id);document.getElementById('logOverlay').classList.add('show');document.querySelectorAll('.log-tab').forEach((t,i)=>t.classList.toggle('active',i===0));document.getElementById('logStatsContent').style.display='';document.getElementById('logProcessContent').style.display='none';refreshLogs()}
 function switchLogTab(tab){currentLogTab=tab;document.querySelectorAll('.log-tab').forEach(t=>t.classList.toggle('active',t.textContent.toLowerCase().includes(tab)));document.getElementById('logStatsContent').style.display=tab==='stats'?'':'none';document.getElementById('logProcessContent').style.display=tab==='process'?'':'none';refreshLogs()}
 async function refreshLogs(){if(!currentLogId)return;const lines=document.getElementById('logLines').value;
   if(currentLogTab==='stats'){try{const r=await fetch(`/api/relays/${currentLogId}/logs/stats?lines=${lines}`);const d=await r.json();
-    document.getElementById('logStatsContent').innerHTML=d.length?`<table><tr><th>Time</th><th>Bitrate</th><th>RTT</th><th>Loss</th><th>Retrans</th><th>Drop</th><th>BW</th></tr>${d.map(l=>`<tr><td>${l.time}</td><td>${l.sendRate}</td><td>${l.rtt}</td><td>${l.sndLoss}</td><td>${l.retrans}</td><td>${l.sndDrop}</td><td>${l.bandwidth}</td></tr>`).join('')}</table>`:'<div style="color:var(--text3);padding:20px">No stats data yet</div>';}catch(e){}}
+    document.getElementById('logStatsContent').innerHTML=d.length?`<table><tr><th>Time</th><th>Mbps</th><th>RTT</th><th>Loss</th><th>Retrans</th><th>Drop</th><th>BW</th></tr>${d.map(l=>`<tr><td>${l.time}</td><td>${l.sendRate}</td><td>${l.rtt}</td><td>${l.sndLoss}</td><td>${l.retrans}</td><td>${l.sndDrop}</td><td>${l.bandwidth}</td></tr>`).join('')}</table>`:'<div style="color:var(--text3);padding:20px">No stats data yet</div>';}catch(e){}}
   if(currentLogTab==='process'){try{const r=await fetch(`/api/relays/${currentLogId}/logs/process`);const d=await r.json();
     document.getElementById('logProcessContent').innerHTML=d.length?d.map(l=>`<div class="log-line ${l.src}"><span style="color:var(--text3)">${l.time.split('T')[1]?.slice(0,8)||''}</span> ${esc(l.msg)}</div>`).join(''):'<div style="color:var(--text3);padding:20px">No process logs yet</div>';}catch(e){}}
 }
-async function copyLogs(){const el=currentLogTab==='stats'?document.getElementById('logStatsContent'):document.getElementById('logProcessContent');try{await navigator.clipboard.writeText(el.innerText);alert('Copied to clipboard')}catch(e){const r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');alert('Copied to clipboard')}}
+async function copyLogs(){const el=currentLogTab==='stats'?document.getElementById('logStatsContent'):document.getElementById('logProcessContent');try{await navigator.clipboard.writeText(el.innerText);alert('Copied!')}catch(e){const r=document.createRange();r.selectNode(el);window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');alert('Copied!')}}
 function closeLogModal(){document.getElementById('logOverlay').classList.remove('show');currentLogId=null}
 document.getElementById('modalOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
 document.getElementById('logOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeLogModal()});
-poll();refreshTimer=setInterval(poll,refreshInterval);
+// Init
+checkAuth().then(()=>{poll();refreshTimer=setInterval(poll,refreshInterval)});
 </script>
 </body>
 </html>

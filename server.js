@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -9,12 +10,75 @@ app.use(express.json());
 const CONFIG_FILE = process.env.CONFIG_FILE || '/opt/srt-stats/relays.json';
 const STATS_DIR = process.env.STATS_DIR || '/opt/srt-stats';
 const PORT = parseInt(process.env.PORT || '8800', 10);
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || '';
+const AUTH_COOKIE = 'uww_srt_auth';
+const AUTH_MAX_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+// Generate a stable token from the password (so it survives restarts)
+function authToken() {
+  if (!AUTH_PASSWORD) return '';
+  return crypto.createHash('sha256').update(AUTH_PASSWORD + '_uww_srt_panel').digest('hex').slice(0, 32);
+}
+
+// Auth middleware — skip if no password configured
+function requireAuth(req, res, next) {
+  if (!AUTH_PASSWORD) return next();
+  // Allow login endpoint
+  if (req.path === '/api/auth/login' || req.path === '/api/auth/status') return next();
+  // Check cookie
+  const cookies = parseCookies(req.headers.cookie || '');
+  if (cookies[AUTH_COOKIE] === authToken()) return next();
+  // Check Authorization header (for API tools like curl)
+  const authHeader = req.headers.authorization;
+  if (authHeader === `Bearer ${AUTH_PASSWORD}`) return next();
+  // Not authenticated
+  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Authentication required' });
+  // Serve the page anyway — frontend handles the login prompt
+  next();
+}
+
+function parseCookies(str) {
+  const c = {};
+  str.split(';').forEach(p => { const [k, v] = p.trim().split('='); if (k) c[k] = v || ''; });
+  return c;
+}
+
+app.use(requireAuth);
+
+// Serve static first so HTML loads even without auth
+app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Auth endpoints
+app.get('/api/auth/status', (req, res) => {
+  if (!AUTH_PASSWORD) return res.json({ required: false, authenticated: true });
+  const cookies = parseCookies(req.headers.cookie || '');
+  const authed = cookies[AUTH_COOKIE] === authToken();
+  res.json({ required: true, authenticated: authed });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  if (!AUTH_PASSWORD) return res.json({ ok: true });
+  const { password } = req.body;
+  if (password === AUTH_PASSWORD) {
+    res.setHeader('Set-Cookie', `${AUTH_COOKIE}=${authToken()}; Path=/; Max-Age=${AUTH_MAX_AGE / 1000}; HttpOnly; SameSite=Strict`);
+    return res.json({ ok: true });
+  }
+  res.status(401).json({ error: 'Wrong password' });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.setHeader('Set-Cookie', `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`);
+  res.json({ ok: true });
+});
+
+// --- Core logic ---
 
 let relays = {};
 let processes = {};
 let resetPoints = {};
-let sessionStarts = {};  // { id: ISO timestamp } — files before this are ignored
-let processLogs = {};    // { id: [last 200 stderr lines] }
+let sessionStarts = {};
+let processLogs = {};
 
 function loadConfig() {
   try { if (fs.existsSync(CONFIG_FILE)) relays = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); }
@@ -33,7 +97,7 @@ function isSenderLine(fields) { return (parseFloat(fields[21]) || 0) > 0; }
 
 function detectMode(url) {
   if (!url) return 'caller';
-  if (url.includes('mode=')) return null; // already set, don't override
+  if (url.includes('mode=')) return null;
   const match = url.match(/^srt:\/\/([^:/?]*)/);
   if (!match || !match[1] || match[1] === '') return 'listener';
   return 'caller';
@@ -41,7 +105,6 @@ function detectMode(url) {
 
 function getRelayFiles(id) {
   let files = fs.readdirSync(STATS_DIR).filter(f => f.startsWith(id + '_') && f.endsWith('.csv')).sort();
-  // Filter by session start if set
   if (sessionStarts[id]) {
     const sessTs = sessionStarts[id].replace(/[:.]/g, '-').slice(0, 19);
     files = files.filter(f => {
@@ -52,14 +115,15 @@ function getRelayFiles(id) {
   return files;
 }
 
-// Check if last CSV file is older than 24 hours
 function isLastFileStale(id) {
   const allFiles = fs.readdirSync(STATS_DIR).filter(f => f.startsWith(id + '_') && f.endsWith('.csv')).sort();
   if (allFiles.length === 0) return true;
   const lastFile = allFiles[allFiles.length - 1];
-  const fTs = lastFile.replace(id + '_', '').replace('.csv', '').replace(/-/g, (m, i) => i < 13 ? '-' : (i === 13 ? 'T' : ':'));
   try {
-    const fileTime = new Date(fTs.slice(0, 4) + '-' + fTs.slice(5, 7) + '-' + fTs.slice(8, 10) + 'T' + fTs.slice(11, 13) + ':' + fTs.slice(14, 16) + ':' + fTs.slice(17, 19) + 'Z').getTime();
+    const fTs = lastFile.replace(id + '_', '').replace('.csv', '');
+    const parts = fTs.split(/[-T]/);
+    if (parts.length < 6) return true;
+    const fileTime = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T${parts[3]}:${parts[4]}:${parts[5]}Z`).getTime();
     return (Date.now() - fileTime) > 24 * 60 * 60 * 1000;
   } catch(e) { return false; }
 }
@@ -131,7 +195,7 @@ function getStatsHistory(id, lines) {
   const files = getRelayFiles(id);
   if (files.length === 0) return [];
 
-  let allLines = []; // { time, sendRate, rtt, sndLoss, retrans, sndDrop, _prevLoss, _prevRetrans }
+  let allLines = [];
   const recentFiles = files.slice(-5);
 
   for (let fi = 0; fi < recentFiles.length; fi++) {
@@ -141,17 +205,15 @@ function getStatsHistory(id, lines) {
       const senders = content.slice(1).filter(line => isSenderLine(line.split(',')));
       if (senders.length === 0) continue;
 
-      // Insert gap marker between files
       if (allLines.length > 0) {
         const lastTime = allLines[allLines.length - 1].time;
         const nextTime = senders[0].split(',')[0] || '';
         if (lastTime && nextTime) {
-          allLines.push({ time: lastTime, sendRate: 0, rtt: 0, dLoss: 0, dRetrans: 0, sndDrop: 0, gap: true });
-          allLines.push({ time: nextTime, sendRate: 0, rtt: 0, dLoss: 0, dRetrans: 0, sndDrop: 0, gap: true });
+          allLines.push({ time: lastTime, sendRate: 0, rtt: 0, dLoss: 0, dRetrans: 0, gap: true });
+          allLines.push({ time: nextTime, sendRate: 0, rtt: 0, dLoss: 0, dRetrans: 0, gap: true });
         }
       }
 
-      // Compute per-interval deltas within this file
       let prevLoss = 0, prevRetrans = 0;
       for (let i = 0; i < senders.length; i++) {
         const f = senders[i].split(',');
@@ -165,15 +227,12 @@ function getStatsHistory(id, lines) {
           time: f[0] || '',
           sendRate: parseFloat(f[21]) || 0,
           rtt: parseFloat(f[7]) || 0,
-          dLoss,
-          dRetrans,
-          sndDrop: parseInt(f[13]) || 0
+          dLoss, dRetrans
         });
       }
     } catch(e) {}
   }
 
-  // Take last 12000 lines and downsample
   const raw = allLines.slice(-12000);
   const step = Math.max(1, Math.floor(raw.length / lines));
   const sampled = raw.filter((_, i) => i % step === 0).slice(-lines);
@@ -184,7 +243,6 @@ function getStatsHistory(id, lines) {
   }));
 }
 
-// Get raw CSV lines for log viewer
 function getStatsLog(id, lines) {
   const files = getRelayFiles(id);
   if (files.length === 0) return [];
@@ -212,7 +270,6 @@ function startRelay(id, newSession) {
   const r = relays[id];
   if (!r) return { error: 'Relay not found' };
 
-  // Session management
   if (newSession || isLastFileStale(id)) {
     sessionStarts[id] = new Date().toISOString();
     delete resetPoints[id];
@@ -235,7 +292,6 @@ function startRelay(id, newSession) {
   const args = [srcUrl, dstUrl, '-s:200', '-pf', 'csv', '-statsout', statsFile, '-fullstats'];
   console.log(`[${id}] Starting: srt-live-transmit ${args.join(' ')}`);
 
-  // Initialize process log buffer
   if (!processLogs[id]) processLogs[id] = [];
 
   const proc = spawn('srt-live-transmit', args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -362,11 +418,12 @@ app.get('/api/relays/:id/logs/process', (req, res) => {
   res.json(processLogs[req.params.id] || []);
 });
 
-app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
-app.use(express.static(path.join(__dirname, 'public')));
-
 if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
 loadConfig();
 setTimeout(() => { for (const [id, r] of Object.entries(relays)) { if (r.autostart) { console.log(`[${id}] Auto-starting...`); startRelay(id, false); } } }, 2000);
-app.listen(PORT, '0.0.0.0', () => { console.log(`UWW SRT Relay Panel v2.0 running on http://0.0.0.0:${PORT}`); console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`); });
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`UWW SRT Relay Panel v2.1 running on http://0.0.0.0:${PORT}`);
+  console.log(`Config: ${CONFIG_FILE}, Stats: ${STATS_DIR}`);
+  console.log(`Auth: ${AUTH_PASSWORD ? 'enabled' : 'disabled (set AUTH_PASSWORD env var to enable)'}`);
+});
