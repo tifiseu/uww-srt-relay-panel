@@ -10,6 +10,7 @@ services:
       - CONFIG_FILE=/data/relays.json
       - STATS_DIR=/data
       - PORT=8800
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
     # network_mode: host exposes all ports directly on the host:
     #   8800  — Web UI
     #   30000-30300 — SRT relay ports (dynamic, managed by panel)
